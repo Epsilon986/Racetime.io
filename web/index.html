@@ -1,0 +1,54 @@
+﻿<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10151d">
+  <title>Race Time — Courses arcade</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="assets/data.js"></script>
+  <script defer src="physics.js"></script>
+  <script defer src="vehicle-effects.js"></script>
+  <script defer src="game.js"></script>
+</head>
+<body>
+  <main>
+    <aside>
+      <img class="logo" src="assets/logo.png" alt="Race Time">
+      <div class="setup">
+        <h1>Course libre</h1>
+        <label for="track">Circuit</label>
+        <select id="track"></select>
+        <label for="car">Véhicule</label>
+        <div class="car-picker"><canvas id="preview" width="44" height="44" aria-hidden="true"></canvas><select id="car"></select></div>
+        <button id="start" class="primary" disabled>Lancer la course</button>
+      </div>
+      <div class="instructions">
+        <p><kbd>Espace</kbd><span>Maintiens pour accélérer, relâche avant les virages. Les changements de voie sont automatiques.</span></p>
+        <p><kbd>Échap</kbd><span>Mettre en pause.</span></p>
+      </div>
+      <button id="sound" class="quiet" aria-pressed="true">Son activé</button>
+    </aside>
+    <section class="arena" aria-label="Zone de jeu">
+      <div class="hud">
+        <div><span>TOUR</span><strong id="lap">1 / 2</strong></div>
+        <div><span>CHRONO</span><strong id="time">0:00.000</strong></div>
+        <div><span>FANTÔME</span><strong id="ghost">–</strong></div>
+        <button id="pause" class="quiet" disabled>Pause</button>
+      </div>
+      <div class="viewport">
+        <canvas id="race" aria-label="Circuit vu du dessus"></canvas>
+        <div id="notice" class="notice" aria-live="polite">
+          <p id="tag">Contre-la-montre · 2 tours</p>
+          <h2 id="title">Farm River</h2>
+          <p id="detail">Termine une course pour enregistrer ton fantôme.</p>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="record"><span>RECORD LOCAL</span><strong id="best">–</strong></div>
+        <button class="pedal" id="pedal" disabled>Accélérer</button>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
