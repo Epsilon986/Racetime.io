@@ -96,12 +96,7 @@ function paintHomeRoad(dt) {
   dc.save();
   dc.translate(carX, carY);
   dc.scale(scale, scale);
-  dc.rotate(car.angle * rad + Math.cos(roadTravel / 270) * 0.07);
-  dc.fillStyle = '#0006';
-  dc.beginPath();
-  dc.ellipse(4, 6, 24, 28, 0, 0, 2 * Math.PI);
-  dc.fill();
-  sprite(dc, car.frame, 66, 66);
+  drawVehicle(dc, car, { x: 0, y: 0, angle: Math.cos(roadTravel / 270) * 0.07 }, { powered: true });
   dc.restore();
 }
 
@@ -179,10 +174,13 @@ function initializeGarage() {
     button.className = 'garage-car';
     button.dataset.car = car.id;
     button.setAttribute('aria-pressed', String(car.id === $('car').value));
-    icon.width = 48;
-    icon.height = 48;
+    icon.width = 56;
+    icon.height = 56;
     icon.setAttribute('aria-hidden', 'true');
-    drawHomeIcon(icon, car.frame, 0.87, car.angle * rad);
+    const dc = icon.getContext('2d');
+    dc.translate(28, 26);
+    dc.scale(0.56, 0.56);
+    drawVehicle(dc, car, { x: 0, y: 0, angle: 0 }, { icon: true });
     button.append(icon, car.name);
     button.addEventListener('click', () => {
       const previous = $('garage-cars').querySelector('[aria-pressed="true"]');

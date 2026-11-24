@@ -21,9 +21,9 @@ const rad = Math.PI / 180;
 const loop = (n, length) => ((n % length) + length) % length;
 const color = (value) => '#' + ((value ?? 0x25313b) & 0xffffff).toString(16).padStart(6, '0');
 const clock = (seconds) => {
-  const ms = Math.floor(seconds * 1000 + 0.00001);
-  return Math.floor(ms / 60000) + ':' + String(Math.floor(ms / 1000) % 60).padStart(2, '0') +
-    '.' + String(ms % 1000).padStart(3, '0');
+  const centiseconds = Math.round(seconds * 100);
+  return Math.floor(centiseconds / 6000) + ':' + String(Math.floor(centiseconds / 100) % 60).padStart(2, '0') +
+    '.' + String(centiseconds % 100).padStart(2, '0');
 };
 const load = (key) => {
   try { return localStorage.getItem('race-time:' + key); } catch { return null; }
@@ -495,17 +495,27 @@ function tick(dt) {
   if (mode === 'running') updateHud();
 }
 
-function drawCar(car, { x, y, angle }, opacity = 1) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle + car.angle * rad);
-  ctx.globalAlpha = opacity;
-  ctx.fillStyle = '#0006';
-  ctx.beginPath();
-  ctx.ellipse(3, 5, 18, 24, 0, 0, 2 * Math.PI);
-  ctx.fill();
-  sprite(ctx, car.frame, 51, 51);
-  ctx.restore();
+function drawVehicle(context, car, { x, y, angle }, options = {}) {
+  const { icon = false, opacity = 1, powered = false } = options;
+  const bodyAngle = car.rotateMode === 2 ? 0 : angle;
+  const offsetAngle = car.rotateMode === 0 ? bodyAngle : 0;
+  const hasIconShadow = icon && car.images.some((visual) => visual.shadowIcon && visual.alpha !== 0);
+  for (const visual of car.images) {
+    const alpha = (visual.alpha ?? 1) * opacity;
+    if (!alpha || !effectEnabled(visual, options, powered)) continue;
+    if (hasIconShadow ? visual.shadow && !visual.shadowIcon : visual.shadowIcon && !visual.shadow) continue;
+    const offsetX = visual.x + (icon ? car.displayX : 0);
+    const offsetY = visual.y + (icon ? car.displayY : 0);
+    const origin = shiftPoint({ x, y, angle: offsetAngle }, offsetX, offsetY);
+    const light = (visual.parallaxAngle ?? -45) * rad;
+    context.save();
+    context.translate(origin.x + Math.sin(light) * visual.parallax, origin.y - Math.cos(light) * visual.parallax);
+    context.rotate((visual.noRotate ? 0 : bodyAngle) - (visual.angle ?? 0) * rad);
+    context.scale(visual.flip & 1 ? -1 : 1, visual.flip & 2 ? -1 : 1);
+    context.globalAlpha = alpha;
+    sprite(context, visual.fileName, visual.width, visual.height, (visual.color ?? 0xffffff) & 0xffffff);
+    context.restore();
+  }
 }
 
 function drawGhost(playerPose) {
@@ -515,7 +525,7 @@ function drawGhost(playerPose) {
   const fraction = Math.min(1, (elapsed - i * replayStep) / (end - i * replayStep || 1));
   const pose = interpolatePose(ghost.points[i], ghost.points[i + 1], fraction);
   const opacity = 0.53 * Math.max(0, 1 - (Math.max(0, elapsed - ghost.time) / 0.65));
-  drawCar(ghost.car, pose, opacity);
+  drawVehicle(ctx, ghost.car, pose, { opacity });
   const { x, y } = pose;
   if (Math.hypot(x - playerPose.x, y - playerPose.y) > 28) {
     ctx.save();
@@ -533,13 +543,16 @@ function drawGhost(playerPose) {
 
 function drawPlayer(pose) {
   drawVehicleEffects(ctx, player.effects, elapsed, false, frames, sprite, color);
-  drawCar(player.car, pose);
+  drawVehicle(ctx, player.car, pose, {
+    powered: controls.size > 0, drift: player.drift, wallSide: player.wallSide,
+  });
   drawVehicleEffects(ctx, player.effects, elapsed, true, frames, sprite, color);
 }
 
 function drawStartSignal(width, height) {
   if ((mode !== 'countdown' && mode !== 'running') || startTime >= 2.7) return;
   const scale = Math.min(width / raceView.width, height / raceView.height);
+  // Android uses the lb_balloon sprite behind three solid-color lights.
   const unlit = ['#610106', '#553d03', '#065206'];
   const lit = ['#fd0501', '#ffb500', '#06bd0c'];
   ctx.save();
@@ -551,7 +564,9 @@ function drawStartSignal(width, height) {
   ctx.translate(0, -3);
   for (let i = 0; i < lit.length; i++) {
     ctx.fillStyle = i < litSignals ? lit[i] : unlit[i];
-    ctx.fillRect(-100 + i * 70, -30, 60, 60);
+    ctx.beginPath();
+    ctx.arc(-70 + i * 70, 0, 26, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }
@@ -632,6 +647,11 @@ function bindControls() {
   bindPointer(canvas);
   window.addEventListener('keydown', (event) => {
     if ($('race-screen').hidden || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.code === 'Escape' && !event.repeat) {
+      event.preventDefault();
+      returnHome();
+      return;
+    }
     if (event.code === 'KeyR' && !event.repeat) {
       event.preventDefault();
       startRace();

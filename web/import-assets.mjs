@@ -55,15 +55,19 @@ const cars = Object.entries(read('data/cars')).flatMap(([id, car]) => {
   const body = car.visuals?.body;
   const frame = body?.fileName || car.image;
   const scale = car.scale ?? 1;
-  const effects = Object.values(car.visuals ?? {}).filter(({ type }) => type === 2 || type === 4)
+  const visuals = Object.values(car.visuals ?? {})
     .map((visual) => ({
       ...visual, x: (visual.x ?? 0) * scale, y: (visual.y ?? 0) * scale,
-      width: (visual.width ?? 30) * scale, scale: (visual.scale ?? 1) * scale,
+      width: (visual.width ?? 30) * scale, height: (visual.height ?? 50) * scale,
+      scale: (visual.scale ?? 1) * scale, parallax: (visual.parallax ?? 0) * scale,
       duration: (visual.duration ?? 1) * scale,
     }))
     .sort((a, b) => (a.layer ?? 0) - (b.layer ?? 0));
+  const effects = visuals.filter(({ type }) => type === 2 || type === 4);
+  const images = visuals.filter(({ type, fileName }) => (type ?? 1) === 1 && frames[fileName]);
   return car.displayName && frames[frame] && body?.type !== 3
-    ? [{ id, name: car.displayName, frame, angle: body?.angle || 0,
+    ? [{ id, name: car.displayName, images, rotateMode: car.rotateMode ?? 0,
+        displayX: Math.trunc((car.displayX ?? 0) * scale), displayY: Math.trunc((car.displayY ?? 0) * scale),
         smoothing: car.smoothing ?? 0.3, capSmoothing: car.capSmoothing ?? true,
         drifts: car.drifts ?? false, startingLineY: (car.startingLineY ?? 0) * (car.scale ?? 1),
         thrustSound: car.thrustSound || 'thrust',
