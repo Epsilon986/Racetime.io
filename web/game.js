@@ -44,7 +44,6 @@ let wallVolume = 0;
 let thrustVolume = 0;
 let soundContext, engineVoice;
 const engineBuffers = new Map();
-let resumeMode;
 let priorFrame = 0;
 
 function announce(tag, title, detail) {
@@ -178,7 +177,7 @@ function updateRaceAudio(powered) {
 
 function setSoundLabel() {
   const label = muted ? 'Son coupé' : 'Son activé';
-  $('sound').textContent = label;
+  $('race-sound-label').textContent = label;
   $('home-sound-label').textContent = label;
   for (const id of ['sound', 'home-sound']) $(id).setAttribute('aria-pressed', String(!muted));
 }
@@ -370,7 +369,6 @@ function setupPlayer() {
   player.effects = createVehicleEffects(selected, particles);
   previousPose = racePhysics.pose(player);
   replay = [previousPose];
-  drawHomeIcon($('preview'), selected.frame, 0.78, selected.angle * rad);
 }
 
 function readGhost() {
@@ -411,16 +409,10 @@ function reset() {
   litSignals = 0;
   $('track').disabled = false;
   $('car').disabled = false;
-  $('start').textContent = 'Lancer la course';
-  $('start').disabled = false;
-  $('pause').textContent = 'Pause';
-  $('pause').disabled = true;
-  $('pedal').disabled = true;
+  $('notice').hidden = true;
   setupPlayer();
   ghost = readGhost();
   updateHud();
-  announce('Contre-la-montre · 2 tours', course.name, ghost ?
-    'Bats ton fantôme pour améliorer ton record.' : 'Termine une course pour enregistrer ton fantôme.');
 }
 
 function startRace() {
@@ -428,32 +420,12 @@ function startRace() {
   mode = 'countdown';
   $('track').disabled = true;
   $('car').disabled = true;
-  $('pedal').disabled = false;
-  $('pause').disabled = false;
-  $('start').textContent = 'Recommencer';
   $('notice').hidden = true;
   if (!muted) {
     enableEngineAudio();
     for (const name of ['car_grind', course.ambience, 'start_beep_1', 'start_beep_2', 'start_beep_3']) {
       recording(name).preload = 'auto';
     }
-  }
-}
-
-function pauseRace() {
-  if (mode === 'paused') {
-    mode = resumeMode;
-    $('notice').hidden = true;
-    $('pause').textContent = 'Pause';
-    $('pedal').disabled = false;
-  } else if (mode === 'running' || mode === 'countdown') {
-    resumeMode = mode;
-    mode = 'paused';
-    controls.clear();
-    stopRaceAudio();
-    $('pause').textContent = 'Reprendre';
-    $('pedal').disabled = true;
-    announce('Course en pause', course.name, 'Appuyez sur Échap ou sur Reprendre.');
   }
 }
 
@@ -495,9 +467,7 @@ function finish() {
   updateHud();
   $('track').disabled = false;
   $('car').disabled = false;
-  $('start').textContent = 'Rejouer';
-  $('pause').disabled = true;
-  $('pedal').disabled = true;
+  canvas.focus({ preventScroll: true });
   play('finish_race');
   announce(record ? 'Nouveau record' : 'Course terminée', clock(elapsed),
     record ? 'Cette course devient ton fantôme à battre.' : 'Ton meilleur temps reste ' + clock(ghost.time) + '.');
@@ -598,7 +568,7 @@ function render() {
   ctx.fillStyle = color(course.background);
   ctx.fillRect(0, 0, width, height);
   const current = racePhysics.pose(player);
-  const pose = mode === 'running' || mode === 'paused'
+  const pose = mode === 'running'
     ? interpolatePose(previousPose, current, physicsRemainder / racePhysics.step)
     : current;
   const scale = raceView.zoom * Math.min(width / raceView.width, height / raceView.height);
@@ -615,7 +585,6 @@ function render() {
   }
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   drawStartSignal(width, height);
-  $('pedal').classList.toggle('active', controls.size > 0);
 }
 
 function frame(now) {
@@ -624,12 +593,16 @@ function frame(now) {
   if (!$('race-screen').hidden) {
     tick(dt);
     render();
+  } else if (!$('home').hidden) {
+    paintHomeRoad(dt);
   }
   requestAnimationFrame(frame);
 }
 
 function bindPointer(element) {
+  let canReplay = false;
   element.addEventListener('pointerdown', (event) => {
+    canReplay = event.button === 0 && mode === 'finished';
     if (event.button !== 0 || !['running', 'countdown'].includes(mode)) return;
     event.preventDefault();
     element.setPointerCapture(event.pointerId);
@@ -638,12 +611,15 @@ function bindPointer(element) {
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
     element.addEventListener(name, (event) => controls.delete(event.pointerId));
   }
+  element.addEventListener('pointercancel', () => { canReplay = false; });
+  element.addEventListener('click', (event) => {
+    if (mode === 'finished' && (canReplay || event.detail === 0)) startRace();
+    canReplay = false;
+  });
   element.addEventListener('contextmenu', (event) => event.preventDefault());
 }
 
 function bindControls() {
-  $('start').addEventListener('click', startRace);
-  $('pause').addEventListener('click', pauseRace);
   const toggleSound = () => {
     muted = !muted;
     save('muted', muted);
@@ -653,26 +629,36 @@ function bindControls() {
   };
   $('sound').addEventListener('click', toggleSound);
   $('home-sound').addEventListener('click', toggleSound);
-  for (const element of [canvas, $('pedal')]) bindPointer(element);
+  bindPointer(canvas);
   window.addEventListener('keydown', (event) => {
-    if (event.code === 'Escape' && !event.repeat) pauseRace();
+    if ($('race-screen').hidden || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.code === 'KeyR' && !event.repeat) {
+      event.preventDefault();
+      startRace();
+      return;
+    }
+    if (mode === 'finished' && ['Space', 'Enter'].includes(event.code) && !event.repeat &&
+        !event.target.closest?.('button, select, input, a')) {
+      event.preventDefault();
+      startRace();
+      if (event.code === 'Space') controls.add(event.code);
+      return;
+    }
     if (!['Space', 'ArrowUp', 'KeyW', 'KeyZ'].includes(event.code)) return;
     if (!['running', 'countdown'].includes(mode)) return;
     event.preventDefault();
     controls.add(event.code);
   });
   window.addEventListener('keyup', (event) => controls.delete(event.code));
-  window.addEventListener('blur', () => {
-    controls.clear();
-    if (mode === 'running' || mode === 'countdown') pauseRace();
-  });
+  window.addEventListener('blur', () => controls.clear());
 }
 
 async function init() {
   for (const { id, name } of cars) $('car').append(new Option(name, id));
   setSoundLabel();
   const atlasNames = [...new Set(Object.values(frames).map(({ sheet }) => sheet))];
-  await Promise.all(atlasNames.map((name) => new Promise((resolve, reject) => {
+  const roadNames = [...new Set(tracks.map(({ menuRoad }) => 'road_ui_straight_' + menuRoad))];
+  await Promise.all([...atlasNames, ...roadNames].map((name) => new Promise((resolve, reject) => {
     const img = sheets[name] = new Image();
     img.onload = resolve;
     img.onerror = () => reject(new Error('Atlas indisponible : ' + name));

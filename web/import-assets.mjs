@@ -13,6 +13,10 @@ const tracks = readdirSync(new URL('data/', assets))
     const level = read('data/' + id);
     return {
       id, name: info.displayName.trim(), roadTexture: info.trackImage, background: info.rightColor,
+      menuRoad: info.image, menuTerrain: [
+        { color: info.leftColor, objects: Object.values(info.leftTerrain ?? {}).map(({ object }) => object) },
+        { color: info.rightColor, objects: Object.values(info.rightTerrain ?? {}).map(({ object }) => object) },
+      ],
       ambience: info.ambientSound || 'ambience_track_generic',
       lanes: level.laneData.lanes.map(({ path }) => path.map(({ x, y, l, r }) => [x / 100, y / 100, l ?? null, r ?? null])),
       roads: level.roads,
@@ -22,6 +26,10 @@ const tracks = readdirSync(new URL('data/', assets))
   });
 const frames = {};
 const copy = (from, to) => copyFileSync(new URL(from, assets), new URL(to, output));
+for (const road of new Set(tracks.map(({ menuRoad }) => menuRoad))) {
+  const file = 'road_ui_straight_' + road + '.png';
+  copy('art/' + file, file);
+}
 for (const sheet of ['world_v2', 'world2', 'cars', 'main3_v2']) {
   for (const frame of read('spritesheet/' + sheet).frames) {
     frames[frame.filename] = { ...frame, sheet };

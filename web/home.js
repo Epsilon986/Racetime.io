@@ -40,42 +40,113 @@ function drawHomeIcon(canvas, name, scale = 1, angle = 0) {
   dc.restore();
 }
 
-function paintHomeTrack() {
-  const board = $('track-preview');
+const homeMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+let roadTravel = 0;
+
+function paintHomeRoad(dt) {
+  const board = $('home-road');
   const width = board.clientWidth;
   const height = board.clientHeight;
-  if (!scene || !width || !height) return;
+  if (!course || !width || !height) return;
   const ratio = Math.min(2, window.devicePixelRatio || 1);
-  board.width = Math.round(width * ratio);
-  board.height = Math.round(height * ratio);
+  if (board.width !== Math.round(width * ratio) || board.height !== Math.round(height * ratio)) {
+    board.width = Math.round(width * ratio);
+    board.height = Math.round(height * ratio);
+  }
   const dc = board.getContext('2d');
-  const [x, y] = course.lanes[1][7];
-  const [aheadX, aheadY] = course.lanes[1][19];
-  const scale = Math.max(width / 1300, height / 860);
-  dc.setTransform(ratio, 0, 0, ratio, 0, 0);
-  dc.fillStyle = color(course.background);
-  dc.fillRect(0, 0, width, height);
-  dc.translate(width * 0.5, height * 0.46);
-  dc.scale(scale, scale);
-  dc.translate(-x, -y);
-  dc.drawImage(scene.image, scene.x, scene.y);
-  dc.save();
-  dc.translate(x, y);
   const car = player.car;
-  dc.rotate(Math.atan2(aheadY - y, aheadX - x) + Math.PI / 2 + car.angle * rad);
-  sprite(dc, car.frame, 58, 58);
+  const center = width * (width > 750 ? 0.56 : 0.5);
+  const scale = Math.max(0.88, Math.min(1.7, width / (width > 750 ? 810 : 385)));
+  const tileHeight = 256 * scale;
+  const terrain = course.menuTerrain;
+  const road = sheets['road_ui_straight_' + course.menuRoad];
+  const sceneryPeriod = 8;
+  const scenerySpacing = 205;
+  const speed = homeMotion.matches ? 0 : 300;
+  roadTravel += dt * speed;
+
+  dc.setTransform(ratio, 0, 0, ratio, 0, 0);
+  dc.fillStyle = color(terrain[0].color ?? course.background);
+  dc.fillRect(0, 0, center + 1, height);
+  dc.fillStyle = color(terrain[1].color ?? course.background);
+  dc.fillRect(center, 0, width - center, height);
+
+  for (let y = loop(roadTravel * scale, tileHeight) - tileHeight; y < height; y += tileHeight) {
+    dc.drawImage(road, center - 256 * scale, Math.floor(y), 512 * scale, Math.ceil(tileHeight));
+  }
+
+  for (const [side, area] of terrain.entries()) {
+    if (!area.objects.length) continue;
+    for (let row = -1; row <= Math.ceil(height / (scenerySpacing * scale)); row++) {
+      const index = loop(row - Math.floor(roadTravel / scenerySpacing), sceneryPeriod);
+      const y = (row * scenerySpacing + loop(roadTravel, scenerySpacing)) * scale;
+      const distance = 152 + loop(index * 91 + side * 75, 148);
+      const x = center + (side === 0 ? -1 : 1) * distance * scale;
+      dc.save();
+      dc.translate(x, y);
+      dc.scale(scale, scale);
+      drawDecoration(dc, { name: area.objects[index % area.objects.length], x: 0, y: 0,
+        s: 0.76 + loop(index * 37, 23) / 100 });
+      dc.restore();
+    }
+  }
+
+  const carX = center + Math.sin(roadTravel / 270) * 12 * scale;
+  const carY = height * (width > 750 ? 0.55 : 0.51) + Math.sin(roadTravel / 140) * 12 * scale;
+  dc.save();
+  dc.translate(carX, carY);
+  dc.scale(scale, scale);
+  dc.rotate(car.angle * rad + Math.cos(roadTravel / 270) * 0.07);
+  dc.fillStyle = '#0006';
+  dc.beginPath();
+  dc.ellipse(4, 6, 24, 28, 0, 0, 2 * Math.PI);
+  dc.fill();
+  sprite(dc, car.frame, 66, 66);
   dc.restore();
-  for (const decoration of scene.foreground) drawDecoration(dc, decoration);
 }
 
 function refreshHome() {
   if ($('home').hidden || !course) return;
   $('home-track-name').textContent = course.name;
   $('home-race-type').textContent = (course.id.startsWith('short_') ? 'Sprint' : 'Pro') + ' · 2 tours';
-  $('selected-car').textContent = player.car.name;
   showRanking();
-  paintHomeTrack();
+  paintCircuitPreview();
+  paintHomeRoad(0);
   refreshGift();
+}
+
+function paintCircuitPreview() {
+  const board = $('circuit-preview');
+  const dc = board.getContext('2d');
+  const points = course.lanes[1];
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const width = Math.max(...xs) - minX;
+  const height = Math.max(...ys) - minY;
+  const scale = Math.min((board.width - 38) / width, (board.height - 38) / height);
+  const x = (board.width - width * scale) / 2 - minX * scale;
+  const y = (board.height - height * scale) / 2 - minY * scale;
+  dc.clearRect(0, 0, board.width, board.height);
+  dc.beginPath();
+  for (const [px, py] of points) dc.lineTo(x + px * scale, y + py * scale);
+  dc.closePath();
+  dc.lineJoin = 'round';
+  dc.strokeStyle = '#0c1820';
+  dc.lineWidth = 18;
+  dc.stroke();
+  dc.strokeStyle = '#ecf7ec';
+  dc.lineWidth = 8;
+  dc.stroke();
+  dc.beginPath();
+  dc.arc(x + points[0][0] * scale, y + points[0][1] * scale, 10, 0, Math.PI * 2);
+  dc.fillStyle = '#d9ff47';
+  dc.fill();
+  dc.strokeStyle = '#0c1820';
+  dc.lineWidth = 3;
+  dc.stroke();
+  board.setAttribute('aria-label', 'Aperçu du circuit ' + course.name);
 }
 
 function chooseCategory(category, preferredTrack) {
@@ -148,9 +219,8 @@ function refreshGift(justClaimed = false) {
 function enterRace() {
   $('home').hidden = true;
   $('race-screen').hidden = false;
-  $('race-track-name').textContent = course.name;
   startRace();
-  $('pause').focus({ preventScroll: true });
+  $('race').focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
 
@@ -159,7 +229,7 @@ function returnHome() {
   $('race-screen').hidden = true;
   $('home').hidden = false;
   refreshHome();
-  $('play-race').focus({ preventScroll: true });
+  $('home-road').focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
 
@@ -182,7 +252,6 @@ function initializeHome() {
   }
   $('track').addEventListener('change', chooseTrack);
   $('garage-open').addEventListener('click', openGarage);
-  $('vehicle-shortcut').addEventListener('click', openGarage);
   $('gift-open').addEventListener('click', () => {
     refreshGift();
     $('gifts').showModal();
@@ -195,8 +264,16 @@ function initializeHome() {
     save('daily-gift', JSON.stringify({ day, coins: balance + 50 }));
     refreshGift(parseSave('daily-gift', {}).day === day);
   });
-  $('play-race').addEventListener('click', enterRace);
+  $('home-road').setAttribute('aria-disabled', 'false');
+  $('home-road').addEventListener('click', enterRace);
+  window.addEventListener('keydown', (event) => {
+    if ($('home').hidden || $('garage').open || $('gifts').open || event.repeat ||
+        event.ctrlKey || event.metaKey || event.altKey ||
+        !['Space', 'Enter'].includes(event.code) || event.target.closest?.('button, select, a, input')) return;
+    event.preventDefault();
+    enterRace();
+    if (event.code === 'Space') controls.add(event.code);
+  });
   $('back-home').addEventListener('click', returnHome);
-  for (const id of ['track', 'garage-open', 'vehicle-shortcut', 'gift-open', 'play-race', 'home-sound']) $(id).disabled = false;
-  new ResizeObserver(paintHomeTrack).observe($('track-preview'));
+  for (const id of ['track', 'garage-open', 'gift-open', 'home-sound']) $(id).disabled = false;
 }

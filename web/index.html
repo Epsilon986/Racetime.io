@@ -15,6 +15,8 @@
 </head>
 <body>
   <main id="home" class="home">
+    <canvas id="home-road" role="button" tabindex="0" aria-disabled="true"
+      aria-label="Lancer une course" aria-describedby="start-hint" aria-keyshortcuts="Space Enter"></canvas>
     <header class="home-header">
       <img class="home-logo" src="assets/logo.png" alt="Race Time">
       <div class="home-actions">
@@ -24,12 +26,9 @@
       </div>
     </header>
 
-    <section class="home-grid" aria-label="Accueil de Race Time">
-      <section class="home-panel leaderboard" aria-labelledby="ranking-title">
-        <div class="board-head">
-          <canvas data-icon="trophy_gold" width="52" height="52" aria-hidden="true"></canvas>
-          <div><h1 id="ranking-title">Classement</h1><p>Chronos locaux sur ce circuit</p></div>
-        </div>
+    <section class="home-circuit" aria-labelledby="home-track-name">
+        <p id="home-race-type">Sprint · 2 tours</p>
+        <h1 id="home-track-name">Farm River</h1>
         <div class="circuit-controls">
           <div class="circuit-modes" role="group" aria-label="Catégorie du circuit">
             <button type="button" data-category="sprint" aria-pressed="true" disabled>Sprint</button>
@@ -37,6 +36,14 @@
           </div>
           <label for="track" class="visually-hidden">Circuit</label>
           <select id="track" disabled></select>
+        </div>
+    </section>
+    <p id="start-hint" class="start-hint"><span class="hint-keyboard"><kbd>Espace</kbd> ou clique sur la piste pour partir</span><span class="hint-touch">Touche la piste pour partir</span></p>
+    <canvas id="circuit-preview" class="circuit-preview" width="420" height="280" role="img" aria-label="Aperçu du circuit"></canvas>
+    <section class="home-ranking" aria-labelledby="ranking-title">
+        <div class="board-head">
+          <canvas data-icon="trophy_gold" width="36" height="36" aria-hidden="true"></canvas>
+          <div><h2 id="ranking-title">Classement</h2><p>Chronos locaux</p></div>
         </div>
         <div class="ranking-list">
           <table class="results">
@@ -46,62 +53,31 @@
         </div>
         <p id="ranking-empty" class="ranking-empty">Termine une course pour inscrire ton premier chrono.</p>
         <p id="home-status" class="ranking-empty" role="status" hidden></p>
-      </section>
-
-      <section class="home-panel race-card" aria-labelledby="home-track-name">
-        <div class="track-showcase">
-          <canvas id="track-preview" aria-label="Aperçu du circuit"></canvas>
-          <div class="track-heading">
-            <p id="home-race-type">Sprint · 2 tours</p>
-            <h2 id="home-track-name">Farm River</h2>
-          </div>
-        </div>
-        <div class="race-card-footer">
-          <button id="vehicle-shortcut" class="vehicle-shortcut" disabled>
-            <canvas id="preview" width="56" height="56" aria-hidden="true"></canvas>
-            <span><small>Véhicule sélectionné</small><strong id="selected-car"></strong></span>
-          </button>
-          <button id="play-race" class="race-launch" disabled>Lancer la course</button>
-        </div>
-      </section>
     </section>
     <select id="car" aria-label="Véhicule sélectionné" hidden></select>
   </main>
 
   <main id="race-screen" class="race-screen" hidden>
-    <aside>
-      <button id="back-home" class="quiet">Accueil</button>
-      <img class="logo" src="assets/logo.png" alt="Race Time">
-      <div class="setup">
-        <h1 id="race-track-name">Course libre</h1>
-        <button id="start" class="primary" disabled>Lancer la course</button>
-      </div>
-      <div class="instructions">
-        <p><kbd>Espace</kbd><span>Maintiens pour accélérer, relâche avant les virages. Les changements de voie sont automatiques.</span></p>
-        <p><kbd>Échap</kbd><span>Mettre en pause.</span></p>
-      </div>
-      <button id="sound" class="quiet" aria-pressed="true">Son activé</button>
-    </aside>
-    <section class="arena" aria-label="Zone de jeu">
-      <div class="hud">
+    <canvas id="race" tabindex="0" aria-label="Circuit vu du dessus" aria-keyshortcuts="R Space Enter"></canvas>
+    <header class="race-header">
+      <button id="back-home" class="home-action"><img class="race-logo" src="assets/logo.png" alt="">Accueil</button>
+      <div class="hud" aria-label="Statistiques de course">
         <div><span>TOUR</span><strong id="lap">1 / 2</strong></div>
         <div><span>CHRONO</span><strong id="time">0:00.000</strong></div>
         <div><span>FANTÔME</span><strong id="ghost">–</strong></div>
-        <button id="pause" class="quiet" disabled>Pause</button>
       </div>
-      <div class="viewport">
-        <canvas id="race" aria-label="Circuit vu du dessus"></canvas>
-        <div id="notice" class="notice" aria-live="polite">
-          <p id="tag">Contre-la-montre · 2 tours</p>
-          <h2 id="title">Farm River</h2>
-          <p id="detail">Termine une course pour enregistrer ton fantôme.</p>
-        </div>
-      </div>
-      <div class="footer">
-        <div class="record"><span>RECORD LOCAL</span><strong id="best">–</strong></div>
-        <button class="pedal" id="pedal" disabled>Accélérer</button>
-      </div>
-    </section>
+      <button id="sound" class="home-action" aria-pressed="true"><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas><span id="race-sound-label">Son activé</span></button>
+    </header>
+    <div id="notice" class="race-result" aria-live="polite" hidden>
+      <p id="tag"></p>
+      <h2 id="title"></h2>
+      <p id="detail"></p>
+      <p class="replay-hint"><span class="hint-keyboard"><kbd>Espace</kbd> ou clique sur la piste pour rejouer</span><span class="hint-touch">Touche la piste pour rejouer</span></p>
+    </div>
+    <footer class="race-footer">
+      <div class="record"><span>RECORD LOCAL</span><strong id="best">–</strong></div>
+      <p class="race-controls"><span class="hint-keyboard"><kbd>Espace</kbd> Accélérer <kbd>R</kbd> Recommencer</span><span class="hint-touch">Maintiens la piste pour accélérer</span></p>
+    </footer>
   </main>
 
   <dialog id="garage" class="home-dialog" aria-labelledby="garage-title">
