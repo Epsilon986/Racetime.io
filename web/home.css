@@ -1,0 +1,98 @@
+﻿.home {
+  display: block;
+  width: min(1200px, 100%);
+  padding: clamp(16px, 4vw, 48px);
+}
+body:has(.home:not([hidden])) {
+  grid-template-columns: minmax(0, 1fr);
+  background: radial-gradient(ellipse at 75% 0%, #183f68 0%, transparent 56%), #081a30;
+}
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: clamp(18px, 4vw, 36px);
+}
+.home-logo { width: clamp(135px, 23vw, 255px); height: auto; }
+.home-actions { display: flex; gap: 8px; }
+.home-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #abcfff38;
+  padding: 5px 12px;
+  background: #102947;
+  color: #f4f8ff;
+  white-space: nowrap;
+}
+.home-action:hover { background: #203d60; }
+.home-action canvas { display: block; flex-shrink: 0; }
+.gift-dot { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: #f9cf5d; top: 7px; right: 7px; }
+.home-grid { display: grid; grid-template-columns: minmax(280px, .85fr) minmax(0, 1.35fr); gap: 18px; }
+.home-panel { min-width: 0; background: #102947; border: 1px solid #abcfff32; border-radius: 18px; overflow: hidden; }
+.leaderboard { padding: clamp(16px, 2.5vw, 28px); }
+.board-head { display: flex; align-items: center; gap: 12px; }
+.board-head h1, .dialog-header h2 { margin: 0; font-size: 1.6rem; letter-spacing: -.035em; }
+.board-head p, .dialog-header p { margin: 3px 0 0; color: #b5cade; font-size: .9rem; }
+.circuit-controls { display: grid; gap: 10px; margin-top: 22px; }
+.circuit-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 11px; background: #091e35; }
+.circuit-modes button { border: 0; color: #b5cade; background: transparent; min-height: 36px; }
+.circuit-modes button[aria-pressed="true"] { background: #2664a1; color: #fff; }
+.home select { background: #0b2038; border-color: #355574; }
+.ranking-list { max-height: 264px; overflow: auto; margin-top: 18px; }
+.results { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; font-variant-numeric: tabular-nums; }
+.results :is(th, td) { padding: 10px 4px; border-bottom: 1px solid #abcfff29; }
+.results th { position: sticky; top: 0; background: #102947; font-size: .82rem; color: #b5cade; }
+.results :is(th, td):last-child { text-align: right; white-space: nowrap; }
+.results td:first-child { color: #afe1ff; }
+.ranking-empty { color: #b5cade; margin: 18px 0 0; line-height: 1.45; }
+.race-card { display: flex; flex-direction: column; }
+.track-showcase { position: relative; height: clamp(270px, 48vh, 448px); overflow: hidden; background: #164968; }
+#track-preview { display: block; width: 100%; height: 100%; }
+.track-heading {
+  position: absolute; inset: auto 0 0;
+  padding: 42px clamp(16px, 3vw, 28px) 20px;
+  background: linear-gradient(transparent, #081a30 95%);
+}
+.track-heading p { margin: 0 0 3px; color: #d8e9ff; font-weight: 700; }
+.track-heading h2 { margin: 0; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.04; letter-spacing: -.055em; }
+.race-card-footer { display: flex; flex: 1; gap: 12px; justify-content: space-between; align-items: center; padding: 14px clamp(12px, 2.5vw, 22px); }
+.vehicle-shortcut { display: flex; align-items: center; gap: 9px; min-width: 0; border: 0; background: transparent; padding: 0; text-align: left; }
+.vehicle-shortcut:hover strong { text-decoration: underline; }
+.vehicle-shortcut small { display: block; color: #b5cade; font-size: .78rem; font-weight: 500; }
+.vehicle-shortcut strong { display: block; overflow-wrap: anywhere; }
+.home #preview, .garage-car canvas { background: #091e35; border-radius: 10px; }
+.race-launch { padding: 9px 17px; border: 1px solid #e7ff91; background: #d9ff47; color: #192000; min-height: 49px; }
+.race-launch:hover:enabled { background: #e7ff91; }
+.home-dialog { width: min(680px, calc(100% - 28px)); max-height: 84dvh; padding: 20px; border: 1px solid #abcfff64; border-radius: 18px; background: #102947; color: #f4f8ff; }
+.home-dialog::backdrop { background: #020b17cb; }
+.dialog-header { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 17px; }
+.garage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; }
+.garage-car { display: grid; justify-items: center; align-content: start; gap: 7px; border: 1px solid #45617c; background: #122f4f; padding: 8px 4px; font-size: .875rem; }
+.garage-car[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.gift-dialog { max-width: 380px; text-align: center; }
+.gift-preview { display: grid; place-items: center; }
+.balance { display: flex; justify-content: center; align-items: center; gap: 6px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 750px) {
+  body:has(.home:not([hidden])) { align-items: start; }
+  .home-grid { grid-template-columns: minmax(0, 1fr); }
+  .race-card { grid-row: 1; }
+  .track-showcase { height: clamp(210px, 35dvh, 300px); }
+}
+@media (max-width: 715px) {
+  .race-screen aside .logo { display: none; }
+  .race-screen #back-home { grid-column: 1; grid-row: 1; }
+}
+@media (max-width: 560px) {
+  .home-header { gap: 8px; }
+  .home-actions { gap: 4px; }
+  .home-action { flex-direction: column; gap: 0; padding: 3px 5px; font-size: .75rem; }
+  .home-action canvas { width: 27px; height: 27px; }
+  .home-logo { width: clamp(105px, 34vw, 165px); }
+  .gift-dot { top: 4px; right: 4px; }
+  .race-card-footer .race-launch { padding: 7px 9px; font-size: .88rem; }
+  .race-card-footer #preview { width: 45px; height: 45px; }
+}

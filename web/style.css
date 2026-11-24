@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   color-scheme: dark;
   font-family: Inter, system-ui, sans-serif;
   background: #10151d;
@@ -9,7 +9,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-height: 100dvh; display: grid; place-items: center; }
-main { display: grid; grid-template-columns: 268px minmax(0, 1fr); width: min(1320px, 100%); padding: clamp(12px, 3vw, 44px); gap: clamp(12px, 2vw, 28px); }
+.race-screen { display: grid; grid-template-columns: 268px minmax(0, 1fr); width: min(1320px, 100%); padding: clamp(12px, 3vw, 44px); gap: clamp(12px, 2vw, 28px); }
 aside, .arena { background: #1a212b; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
 aside { display: flex; flex-direction: column; align-items: stretch; padding: 24px; gap: 24px; }
 .logo { display: block; width: 100%; max-width: 205px; align-self: center; }
@@ -26,7 +26,7 @@ select { width: 100%; padding: 8px 10px; background: #111822; border: 1px solid 
 #preview { background: #111822; border-radius: 8px; flex-shrink: 0; }
 .primary { margin-top: 8px; border: 0; color: #192000; background: var(--accent); }
 .quiet { background: #222c39; border: 1px solid var(--line); padding: 6px 14px; }
-aside > .quiet { margin-top: auto; }
+aside > #sound { margin-top: auto; }
 .instructions { border-top: 1px solid var(--line); padding-top: 12px; font-size: .875rem; line-height: 1.4; }
 .instructions p { display: flex; gap: 8px; align-items: start; margin: 8px 0; }
 kbd { color: #fff; padding: 1px 5px; border: 1px solid #526075; border-radius: 4px; }
@@ -45,14 +45,14 @@ kbd { color: #fff; padding: 1px 5px; border: 1px solid #526075; border-radius: 4
 .pedal.active { background: var(--accent); color: #192000; }
 [hidden] { display: none !important; }
 @media (max-width: 715px) {
-  main { grid-template-columns: 1fr; }
+  .race-screen { grid-template-columns: 1fr; }
   aside { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 12px; padding: 12px; }
   .logo { width: clamp(62px, 15vw, 110px); }
   .setup { grid-column: 2; gap: 5px; }
   h1 { font-size: 1.1rem; }
   .instructions { grid-column: 1 / -1; padding: 0; }
   .instructions p:last-child { display: none; }
-  aside > .quiet { grid-column: 3; grid-row: 1; padding: 6px 8px; font-size: .85rem; }
+  aside > #sound { grid-column: 3; grid-row: 1; padding: 6px 8px; font-size: .85rem; }
   .viewport { height: clamp(285px, 50dvh, 620px); }
 }
 @media (max-width: 400px) {

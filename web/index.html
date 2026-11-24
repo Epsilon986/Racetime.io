@@ -3,24 +3,77 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10151d">
+  <meta name="theme-color" content="#08203e">
   <title>Race Time — Courses arcade</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="home.css">
   <script defer src="assets/data.js"></script>
   <script defer src="physics.js"></script>
   <script defer src="vehicle-effects.js"></script>
+  <script defer src="home.js"></script>
   <script defer src="game.js"></script>
 </head>
 <body>
-  <main>
+  <main id="home" class="home">
+    <header class="home-header">
+      <img class="home-logo" src="assets/logo.png" alt="Race Time">
+      <div class="home-actions">
+        <button class="home-action" id="garage-open" disabled><canvas data-icon="button_garage" width="38" height="38" aria-hidden="true"></canvas>Garage</button>
+        <button class="home-action" id="gift-open" disabled><canvas data-icon="button_gift" width="38" height="38" aria-hidden="true"></canvas>Cadeaux<span id="gift-dot" class="gift-dot" hidden><span class="visually-hidden"> disponibles</span></span></button>
+        <button class="home-action" id="home-sound" aria-pressed="true" disabled><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas><span id="home-sound-label">Son activé</span></button>
+      </div>
+    </header>
+
+    <section class="home-grid" aria-label="Accueil de Race Time">
+      <section class="home-panel leaderboard" aria-labelledby="ranking-title">
+        <div class="board-head">
+          <canvas data-icon="trophy_gold" width="52" height="52" aria-hidden="true"></canvas>
+          <div><h1 id="ranking-title">Classement</h1><p>Chronos locaux sur ce circuit</p></div>
+        </div>
+        <div class="circuit-controls">
+          <div class="circuit-modes" role="group" aria-label="Catégorie du circuit">
+            <button type="button" data-category="sprint" aria-pressed="true" disabled>Sprint</button>
+            <button type="button" data-category="pro" aria-pressed="false" disabled>Pro</button>
+          </div>
+          <label for="track" class="visually-hidden">Circuit</label>
+          <select id="track" disabled></select>
+        </div>
+        <div class="ranking-list">
+          <table class="results">
+            <thead><tr><th scope="col">Rang</th><th scope="col">Véhicule</th><th scope="col">Temps</th></tr></thead>
+            <tbody id="ranking-rows"></tbody>
+          </table>
+        </div>
+        <p id="ranking-empty" class="ranking-empty">Termine une course pour inscrire ton premier chrono.</p>
+        <p id="home-status" class="ranking-empty" role="status" hidden></p>
+      </section>
+
+      <section class="home-panel race-card" aria-labelledby="home-track-name">
+        <div class="track-showcase">
+          <canvas id="track-preview" aria-label="Aperçu du circuit"></canvas>
+          <div class="track-heading">
+            <p id="home-race-type">Sprint · 2 tours</p>
+            <h2 id="home-track-name">Farm River</h2>
+          </div>
+        </div>
+        <div class="race-card-footer">
+          <button id="vehicle-shortcut" class="vehicle-shortcut" disabled>
+            <canvas id="preview" width="56" height="56" aria-hidden="true"></canvas>
+            <span><small>Véhicule sélectionné</small><strong id="selected-car"></strong></span>
+          </button>
+          <button id="play-race" class="race-launch" disabled>Lancer la course</button>
+        </div>
+      </section>
+    </section>
+    <select id="car" aria-label="Véhicule sélectionné" hidden></select>
+  </main>
+
+  <main id="race-screen" class="race-screen" hidden>
     <aside>
+      <button id="back-home" class="quiet">Accueil</button>
       <img class="logo" src="assets/logo.png" alt="Race Time">
       <div class="setup">
-        <h1>Course libre</h1>
-        <label for="track">Circuit</label>
-        <select id="track"></select>
-        <label for="car">Véhicule</label>
-        <div class="car-picker"><canvas id="preview" width="44" height="44" aria-hidden="true"></canvas><select id="car"></select></div>
+        <h1 id="race-track-name">Course libre</h1>
         <button id="start" class="primary" disabled>Lancer la course</button>
       </div>
       <div class="instructions">
@@ -50,5 +103,17 @@
       </div>
     </section>
   </main>
+
+  <dialog id="garage" class="home-dialog" aria-labelledby="garage-title">
+    <div class="dialog-header"><div><h2 id="garage-title">Garage</h2><p id="garage-count"></p></div><form method="dialog"><button class="quiet">Fermer</button></form></div>
+    <div id="garage-cars" class="garage-grid"></div>
+  </dialog>
+  <dialog id="gifts" class="home-dialog gift-dialog" aria-labelledby="gifts-title">
+    <div class="dialog-header"><h2 id="gifts-title">Cadeau quotidien</h2><form method="dialog"><button class="quiet">Fermer</button></form></div>
+    <div class="gift-preview"><canvas id="gift-art" width="144" height="144" aria-hidden="true"></canvas></div>
+    <p id="gift-status" role="status"></p>
+    <p class="balance"><canvas data-icon="coin" width="22" height="22" aria-hidden="true"></canvas><strong id="gift-balance"></strong></p>
+    <button class="race-launch" id="gift-claim">Ouvrir le cadeau</button>
+  </dialog>
 </body>
 </html>

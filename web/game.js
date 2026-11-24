@@ -4,7 +4,6 @@ const { tracks, frames, cars, tiles, objects, engineSamples, particles } = windo
 const $ = (id) => document.getElementById(id);
 const canvas = $('race');
 const ctx = canvas.getContext('2d');
-const preview = $('preview').getContext('2d');
 const sheets = {};
 const spriteCache = new Map();
 const recordings = {};
@@ -178,8 +177,10 @@ function updateRaceAudio(powered) {
 }
 
 function setSoundLabel() {
-  $('sound').textContent = muted ? 'Son coupé' : 'Son activé';
-  $('sound').setAttribute('aria-pressed', String(!muted));
+  const label = muted ? 'Son coupé' : 'Son activé';
+  $('sound').textContent = label;
+  $('home-sound-label').textContent = label;
+  for (const id of ['sound', 'home-sound']) $(id).setAttribute('aria-pressed', String(!muted));
 }
 
 function spriteImage(name, tint = 0xffffff) {
@@ -369,12 +370,7 @@ function setupPlayer() {
   player.effects = createVehicleEffects(selected, particles);
   previousPose = racePhysics.pose(player);
   replay = [previousPose];
-  preview.clearRect(0, 0, 44, 44);
-  preview.save();
-  preview.translate(22, 22);
-  preview.rotate(selected.angle * rad);
-  sprite(preview, selected.frame, 34, 34);
-  preview.restore();
+  drawHomeIcon($('preview'), selected.frame, 0.78, selected.angle * rad);
 }
 
 function readGhost() {
@@ -489,6 +485,8 @@ function finish() {
   mode = 'finished';
   controls.clear();
   stopRaceAudio();
+  if (ghost) recordLocalResult(course, ghost.car, ghost.time);
+  recordLocalResult(course, player.car, elapsed);
   const record = !ghost || elapsed < ghost.time;
   if (record) {
     save('ghost-v2/' + course.id, JSON.stringify({ time: elapsed, car: player.car.id, points: replay }));
@@ -623,8 +621,10 @@ function render() {
 function frame(now) {
   const dt = priorFrame ? Math.min((now - priorFrame) / 1000, 0.045) : 0;
   priorFrame = now;
-  tick(dt);
-  render();
+  if (!$('race-screen').hidden) {
+    tick(dt);
+    render();
+  }
   requestAnimationFrame(frame);
 }
 
@@ -642,17 +642,17 @@ function bindPointer(element) {
 }
 
 function bindControls() {
-  $('track').addEventListener('change', selectTrack);
-  $('car').addEventListener('change', reset);
   $('start').addEventListener('click', startRace);
   $('pause').addEventListener('click', pauseRace);
-  $('sound').addEventListener('click', () => {
+  const toggleSound = () => {
     muted = !muted;
     save('muted', muted);
     if (muted) stopRaceAudio();
     else if (mode === 'running' || mode === 'countdown') enableEngineAudio();
     setSoundLabel();
-  });
+  };
+  $('sound').addEventListener('click', toggleSound);
+  $('home-sound').addEventListener('click', toggleSound);
   for (const element of [canvas, $('pedal')]) bindPointer(element);
   window.addEventListener('keydown', (event) => {
     if (event.code === 'Escape' && !event.repeat) pauseRace();
@@ -669,15 +669,6 @@ function bindControls() {
 }
 
 async function init() {
-  for (const [label, list] of [
-    ['Sprint', tracks.filter(({ id }) => id.startsWith('short_'))],
-    ['Pro', tracks.filter(({ id }) => !id.startsWith('short_'))],
-  ]) {
-    const group = document.createElement('optgroup');
-    group.label = label;
-    for (const { id, name } of list) group.append(new Option(name, id));
-    $('track').append(group);
-  }
   for (const { id, name } of cars) $('car').append(new Option(name, id));
   setSoundLabel();
   const atlasNames = [...new Set(Object.values(frames).map(({ sheet }) => sheet))];
@@ -688,11 +679,12 @@ async function init() {
     img.src = 'assets/' + name + '.png';
   })));
   bindControls();
-  selectTrack();
+  initializeHome();
   requestAnimationFrame(frame);
 }
 
 init().catch((error) => {
-  announce('Chargement interrompu', 'Impossible de lancer Race Time', 'Vérifiez que le dossier assets accompagne index.html.');
+  $('home-status').hidden = false;
+  $('home-status').textContent = 'Impossible de charger les ressources de Race Time.';
   console.error(error);
 });

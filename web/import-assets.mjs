@@ -31,6 +31,11 @@ for (const sheet of ['world_v2', 'world2', 'cars', 'main3_v2']) {
 const startPanel = read('spritesheet/main2_v5').frames.find(({ filename }) => filename === 'lb_balloon');
 frames.lb_balloon = { ...startPanel, sheet: 'main2_v5' };
 copy('spritesheet/main2_v5.png', 'main2_v5.png');
+const homeIcons = new Set(['button_garage', 'button_gift', 'settings_icon', 'trophy_gold', 'coin']);
+for (const frame of read('spritesheet/main_v5').frames) {
+  if (homeIcons.has(frame.filename)) frames[frame.filename] = { ...frame, sheet: 'main_v5' };
+}
+copy('spritesheet/main_v5.png', 'main_v5.png');
 const moon = readFileSync(new URL('art/particle_star_moon.png', assets));
 const moonSize = { w: moon.readUInt32BE(16), h: moon.readUInt32BE(20) };
 frames.particle_star_moon = {
