@@ -80,6 +80,8 @@ const particles = Object.fromEntries([...particleNames]
   .filter((name) => existsSync(new URL('particles/' + name + '.json', assets)))
   .map((name) => [name, read('particles/' + name)]));
 const sounds = new Set([
+  'vs_whoosh', 'vs_impact', 'vs_whoosh_out',
+  'win_crowd_cheer', 'lose_crowd_ooh', 'music_win', 'music_lose',
   'start_beep_1', 'start_beep_2', 'start_beep_3', '2nd_lap', 'finish_race', 'car_grind',
   ...tracks.map(({ ambience }) => ambience),
   ...cars.map(({ thrustSound }) => thrustSound),

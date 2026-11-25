@@ -215,15 +215,22 @@ function refreshGift(justClaimed = false) {
 }
 
 function enterRace() {
+  if (!$('race-intro').hidden) return;
+  $('home').inert = true;
+  startRace({ intro: true });
+}
+
+function showRaceScreen() {
   $('home').hidden = true;
+  $('home').inert = false;
   $('race-screen').hidden = false;
-  startRace();
   $('race').focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
 
 function returnHome() {
   reset();
+  $('home').inert = false;
   $('race-screen').hidden = true;
   $('home').hidden = false;
   refreshHome();

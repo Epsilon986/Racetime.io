@@ -57,6 +57,11 @@
     <select id="car" aria-label="Véhicule sélectionné" hidden></select>
   </main>
 
+  <div id="race-intro" class="race-intro" hidden aria-hidden="true">
+    <div class="race-intro-panel"></div>
+    <div class="race-intro-panel"></div>
+    <strong id="race-intro-track"></strong>
+  </div>
   <main id="race-screen" class="race-screen" hidden>
     <canvas id="race" tabindex="0" aria-label="Circuit vu du dessus" aria-keyshortcuts="R Space Enter Escape"></canvas>
     <header class="race-header">
@@ -68,12 +73,22 @@
       </div>
       <button id="sound" class="home-action" aria-pressed="true"><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas><span id="race-sound-label">Son activé</span></button>
     </header>
-    <div id="notice" class="race-result" aria-live="polite" hidden>
-      <p id="tag"></p>
-      <h2 id="title"></h2>
-      <p id="detail"></p>
-      <p class="replay-hint"><span class="hint-keyboard"><kbd>Espace</kbd> ou clique sur la piste pour rejouer</span><span class="hint-touch">Touche la piste pour rejouer</span></p>
-    </div>
+    <section id="notice" class="race-result" aria-labelledby="result-title" hidden>
+      <h2 id="result-title" role="status"></h2>
+      <div class="result-cards">
+        <div class="result-card">
+          <canvas id="result-car" width="80" height="80" aria-hidden="true"></canvas>
+          <span>Toi</span>
+          <strong id="result-time"></strong>
+        </div>
+        <div id="result-opponent" class="result-card" hidden>
+          <canvas id="result-ghost-car" width="80" height="80" aria-hidden="true"></canvas>
+          <span>Fantôme</span>
+          <strong id="result-ghost-time"></strong>
+        </div>
+      </div>
+      <button id="result-action" class="race-launch" type="button"></button>
+    </section>
     <footer class="race-footer">
       <div class="record"><span>RECORD LOCAL</span><strong id="best">–</strong></div>
       <p class="race-controls"><span class="hint-keyboard"><kbd>Espace</kbd> Accélérer <kbd>R</kbd> Recommencer</span><span class="hint-touch">Maintiens la piste pour accélérer</span></p>

@@ -17,6 +17,7 @@ const tileSize = 64;
 const raceView = { width: 640, height: 960, zoom: 1.3 };
 const startCues = [0.6, 1.4, 2.2];
 const raceStart = 2.3;
+const raceIntroDuration = 1.6;
 const rad = Math.PI / 180;
 const loop = (n, length) => ((n % length) + length) % length;
 const color = (value) => '#' + ((value ?? 0x25313b) & 0xffffff).toString(16).padStart(6, '0');
@@ -45,13 +46,7 @@ let thrustVolume = 0;
 let soundContext, engineVoice;
 const engineBuffers = new Map();
 let priorFrame = 0;
-
-function announce(tag, title, detail) {
-  $('tag').textContent = tag;
-  $('title').textContent = title;
-  $('detail').textContent = detail;
-  $('notice').hidden = false;
-}
+let retryResult = false;
 
 function recording(name) {
   return recordings[name] ??= new Audio('assets/' + name + '.ogg');
@@ -400,6 +395,7 @@ function selectTrack() {
 
 function reset() {
   stopRaceAudio();
+  $('race-intro').hidden = true;
   mode = 'ready';
   controls.clear();
   elapsed = 0;
@@ -415,9 +411,15 @@ function reset() {
   updateHud();
 }
 
-function startRace() {
+function startRace({ intro = false } = {}) {
   if (mode !== 'ready') reset();
   mode = 'countdown';
+  if (intro) {
+    startTime = -raceIntroDuration;
+    $('race-intro-track').textContent = course.name;
+    $('race-intro').hidden = false;
+    play('vs_whoosh', 0.8);
+  }
   $('track').disabled = true;
   $('car').disabled = true;
   $('notice').hidden = true;
@@ -453,10 +455,24 @@ function interpolatePose(a, b, fraction) {
   };
 }
 
+function paintResultCar(id, car) {
+  const icon = $(id);
+  const context = icon.getContext('2d');
+  context.clearRect(0, 0, icon.width, icon.height);
+  context.save();
+  context.translate(icon.width / 2, icon.height / 2);
+  drawVehicle(context, car, { x: 0, y: 0, angle: 0 }, { icon: true });
+  context.restore();
+}
+
 function finish() {
   mode = 'finished';
+  physicsRemainder = 0;
   controls.clear();
   stopRaceAudio();
+  const opponent = ghost;
+  const margin = opponent ? Math.round((elapsed - opponent.time) * 100) : 0;
+  retryResult = Boolean(opponent && margin > 0);
   if (ghost) recordLocalResult(course, ghost.car, ghost.time);
   recordLocalResult(course, player.car, elapsed);
   const record = !ghost || elapsed < ghost.time;
@@ -467,16 +483,46 @@ function finish() {
   updateHud();
   $('track').disabled = false;
   $('car').disabled = false;
-  canvas.focus({ preventScroll: true });
   play('finish_race');
-  announce(record ? 'Nouveau record' : 'Course terminée', clock(elapsed),
-    record ? 'Cette course devient ton fantôme à battre.' : 'Ton meilleur temps reste ' + clock(ghost.time) + '.');
+  if (opponent) {
+    if (!retryResult) play('win_crowd_cheer', 0.6);
+    else if (margin < 25) play('lose_crowd_ooh', 0.6);
+    play(retryResult ? 'music_lose' : 'music_win', 0.4);
+  }
+  $('result-title').textContent = opponent
+    ? (margin < 0 ? 'Victoire !' : margin > 0 ? 'Défaite' : 'Égalité')
+    : 'Course terminée';
+  $('result-time').textContent = clock(elapsed);
+  paintResultCar('result-car', player.car);
+  $('result-opponent').hidden = !opponent;
+  if (opponent) {
+    $('result-ghost-time').textContent = clock(opponent.time);
+    paintResultCar('result-ghost-car', opponent.car);
+  }
+  $('result-action').textContent = retryResult ? 'Rejouer' : 'Continuer';
+  $('notice').hidden = false;
+  $('result-action').focus({ preventScroll: true });
 }
 
 function tick(dt) {
+  if (mode === 'finished') {
+    physicsRemainder += dt;
+    while (player.speed > 0 && physicsRemainder >= racePhysics.step) {
+      physicsRemainder -= racePhysics.step;
+      racePhysics.advance(player, false);
+    }
+    return;
+  }
   if (mode !== 'countdown' && mode !== 'running') return;
   const before = startTime;
   startTime = Math.min(2.7, startTime + dt);
+  if (before < 0) {
+    for (const [cue, sound] of [[-1.28, 'vs_impact'], [-0.38, 'vs_whoosh_out']]) {
+      if (before < cue && startTime >= cue) play(sound, 0.8);
+    }
+    if (before < -0.38 && startTime >= -0.38) showRaceScreen();
+    if (startTime >= 0) $('race-intro').hidden = true;
+  }
   if (mode === 'countdown') {
     while (litSignals < startCues.length && startTime >= startCues[litSignals]) {
       litSignals++;
@@ -550,7 +596,7 @@ function drawPlayer(pose) {
 }
 
 function drawStartSignal(width, height) {
-  if ((mode !== 'countdown' && mode !== 'running') || startTime >= 2.7) return;
+  if ((mode !== 'countdown' && mode !== 'running') || startTime < 0 || startTime >= 2.7) return;
   const scale = Math.min(width / raceView.width, height / raceView.height);
   // Android uses the lb_balloon sprite behind three solid-color lights.
   const unlit = ['#610106', '#553d03', '#065206'];
@@ -605,8 +651,8 @@ function render() {
 function frame(now) {
   const dt = priorFrame ? Math.min((now - priorFrame) / 1000, 0.045) : 0;
   priorFrame = now;
+  if (!$('race-intro').hidden || !$('race-screen').hidden) tick(dt);
   if (!$('race-screen').hidden) {
-    tick(dt);
     render();
   } else if (!$('home').hidden) {
     paintHomeRoad(dt);
@@ -615,9 +661,7 @@ function frame(now) {
 }
 
 function bindPointer(element) {
-  let canReplay = false;
   element.addEventListener('pointerdown', (event) => {
-    canReplay = event.button === 0 && mode === 'finished';
     if (event.button !== 0 || !['running', 'countdown'].includes(mode)) return;
     event.preventDefault();
     element.setPointerCapture(event.pointerId);
@@ -626,11 +670,6 @@ function bindPointer(element) {
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
     element.addEventListener(name, (event) => controls.delete(event.pointerId));
   }
-  element.addEventListener('pointercancel', () => { canReplay = false; });
-  element.addEventListener('click', (event) => {
-    if (mode === 'finished' && (canReplay || event.detail === 0)) startRace();
-    canReplay = false;
-  });
   element.addEventListener('contextmenu', (event) => event.preventDefault());
 }
 
@@ -644,24 +683,34 @@ function bindControls() {
   };
   $('sound').addEventListener('click', toggleSound);
   $('home-sound').addEventListener('click', toggleSound);
+  $('result-action').addEventListener('click', () => {
+    if (mode !== 'finished') return;
+    if (retryResult) {
+      startRace();
+      canvas.focus({ preventScroll: true });
+    } else {
+      returnHome();
+    }
+  });
   bindPointer(canvas);
   window.addEventListener('keydown', (event) => {
-    if ($('race-screen').hidden || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.code === 'Escape' && !event.repeat) {
+      if ($('race-screen').hidden && $('race-intro').hidden) return;
       event.preventDefault();
       returnHome();
       return;
     }
+    if ($('race-screen').hidden) return;
     if (event.code === 'KeyR' && !event.repeat) {
       event.preventDefault();
       startRace();
       return;
     }
-    if (mode === 'finished' && ['Space', 'Enter'].includes(event.code) && !event.repeat &&
-        !event.target.closest?.('button, select, input, a')) {
+    if (mode === 'finished' && ['Space', 'Enter'].includes(event.code) &&
+        (event.target === $('result-action') || !event.target.closest?.('button, select, input, a'))) {
       event.preventDefault();
-      startRace();
-      if (event.code === 'Space') controls.add(event.code);
+      if (!event.repeat) $('result-action').click();
       return;
     }
     if (!['Space', 'ArrowUp', 'KeyW', 'KeyZ'].includes(event.code)) return;
@@ -669,7 +718,10 @@ function bindControls() {
     event.preventDefault();
     controls.add(event.code);
   });
-  window.addEventListener('keyup', (event) => controls.delete(event.code));
+  window.addEventListener('keyup', (event) => {
+    controls.delete(event.code);
+    if (event.code === 'Space' && event.target === $('result-action')) event.preventDefault();
+  });
   window.addEventListener('blur', () => controls.clear());
 }
 
