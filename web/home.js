@@ -1,5 +1,84 @@
 ﻿'use strict';
 
+let activeTournament = null;
+function referenceGhost(track) {
+  return window.referenceGhosts?.[track.id] ?? null;
+}
+
+function dailyTournament(date = new Date()) {
+  const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
+  const sprintTracks = tracks.filter(({ id }) => id.startsWith('short_'));
+  const track = sprintTracks[((day % sprintTracks.length) + sprintTracks.length) % sprintTracks.length];
+  const pro = proTarget(track);
+  return { day, track, master: Math.round(pro * 0.95), pro };
+}
+
+function tournamentDivision(tournament, time) {
+  if (time <= tournament.master) return 'Master';
+  if (time <= tournament.pro) return 'Pro';
+  return 'Novice';
+}
+
+function pairedSprint(track) {
+  const number = /^track_(\d+)$/.exec(track.id)?.[1];
+  return number ? tracks.find(({ id }) => id === 'short_track_' + number.padStart(2, '0')) : undefined;
+}
+
+function proTarget(sprint) {
+  return Math.round(referenceGhost(sprint).time * 100);
+}
+
+function hasQualifiedForPro(sprint) {
+  const results = Object.values(parseSave('ranking/' + sprint.id, {}));
+  const ghostTime = parseSave('ghost-v2/' + sprint.id, {})?.time;
+  return [...results, ghostTime].some((time) =>
+    Number.isFinite(time) && time > 0 && Math.round(time * 100) <= proTarget(sprint));
+}
+
+function refreshProTrack() {
+  const sprint = pairedSprint(course);
+  const locked = Boolean(sprint && !hasQualifiedForPro(sprint));
+  const target = $('pro-track-target');
+  target.hidden = !locked;
+  $('pro-track-sprint').hidden = !locked;
+  $('start-hint').hidden = locked;
+  $('home-road').setAttribute('aria-disabled', String(locked));
+  if (locked) target.textContent = 'Circuit Pro verrouillé · ' + clock(proTarget(sprint) / 100) + ' ou mieux sur le Sprint.';
+}
+
+function showTournament(tournament) {
+  const history = parseSave('tournament-results', {});
+  const best = history[tournament.day];
+  $('tournament-track').textContent = tournament.track.name + ' · Sprint · ' + totalLaps + ' tours';
+  $('tournament-best').textContent = best
+    ? 'Meilleur chrono local · ' + clock(best.time / 100) + ' · Division ' + tournamentDivision(tournament, best.time)
+    : 'Termine une course pour obtenir ta division du jour.';
+  $('tournament-master').textContent = clock(tournament.master / 100);
+  $('tournament-pro').textContent = clock(tournament.pro / 100);
+  const previousDay = Object.keys(history).map(Number).filter((day) => day < tournament.day).sort((a, b) => b - a)[0];
+  const previous = history[previousDay];
+  $('tournament-previous').hidden = !previous;
+  if (previous) {
+    $('tournament-previous').textContent = 'Dernier résultat · ' + previous.track + ' · ' +
+      clock(previous.time / 100) + ' · Division ' + previous.division;
+  }
+}
+
+function recordTournamentResult(seconds) {
+  const label = $('tournament-result');
+  label.hidden = !activeTournament;
+  if (!activeTournament) return;
+  const { day, track } = activeTournament;
+  const history = parseSave('tournament-results', {});
+  const time = Math.round(seconds * 100);
+  if (!history[day] || time < history[day].time) {
+    history[day] = { time, track: track.name, division: tournamentDivision(activeTournament, time) };
+    const days = Object.keys(history).sort((a, b) => Number(b) - Number(a)).slice(0, 30);
+    save('tournament-results', JSON.stringify(Object.fromEntries(days.map((key) => [key, history[key]]))));
+  }
+  label.textContent = 'Tournoi du jour · Division ' + tournamentDivision(activeTournament, history[day].time);
+}
+
 function parseSave(key, fallback) {
   try { return JSON.parse(load(key)) ?? fallback; } catch { return fallback; }
 }
@@ -104,6 +183,10 @@ function refreshHome() {
   if ($('home').hidden || !course) return;
   $('home-track-name').textContent = course.name;
   $('home-race-type').textContent = (course.id.startsWith('short_') ? 'Sprint' : 'Pro') + ' · 2 tours';
+  refreshProTrack();
+  const reference = referenceGhost(course);
+  $('reference-ghost-option').hidden = !reference;
+  if (reference) $('reference-ghost-time').textContent = '· ' + clock(reference.time);
   showRanking();
   paintCircuitPreview();
   paintHomeRoad(0);
@@ -144,14 +227,18 @@ function paintCircuitPreview() {
   board.setAttribute('aria-label', 'Aperçu du circuit ' + course.name);
 }
 
-function chooseCategory(category, preferredTrack) {
+function chooseCategory(category, preferredTrack, remember = true) {
   for (const button of document.querySelectorAll('[data-category]')) {
     button.setAttribute('aria-pressed', String(button.dataset.category === category));
   }
   const options = tracks.filter((track) => track.id.startsWith('short_') === (category === 'sprint'));
   $('track').replaceChildren(...options.map(({ id, name }) => new Option(name, id)));
   if (options.some(({ id }) => id === preferredTrack)) $('track').value = preferredTrack;
-  chooseTrack();
+  if (remember) chooseTrack();
+  else {
+    selectTrack();
+    refreshHome();
+  }
 }
 
 function chooseTrack() {
@@ -215,7 +302,7 @@ function refreshGift(justClaimed = false) {
 }
 
 function enterRace() {
-  if (!$('race-intro').hidden) return;
+  if (!$('race-intro').hidden || $('home-road').getAttribute('aria-disabled') === 'true') return;
   $('home').inert = true;
   startRace({ intro: true });
 }
@@ -229,11 +316,14 @@ function showRaceScreen() {
 }
 
 function returnHome() {
-  reset();
+  const previousTrack = activeTournament?.previousTrack;
+  activeTournament = null;
+  if (!previousTrack) reset();
   $('home').inert = false;
   $('race-screen').hidden = true;
   $('home').hidden = false;
-  refreshHome();
+  if (previousTrack) chooseCategory(previousTrack.startsWith('short_') ? 'sprint' : 'pro', previousTrack, false);
+  else refreshHome();
   $('home-road').focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
@@ -256,7 +346,25 @@ function initializeHome() {
     });
   }
   $('track').addEventListener('change', chooseTrack);
+  $('reference-ghost').addEventListener('change', reset);
+  $('pro-track-sprint').addEventListener('click', () => {
+    const sprint = pairedSprint(course);
+    if (!sprint) return;
+    chooseCategory('sprint', sprint.id);
+    enterRace();
+  });
   $('garage-open').addEventListener('click', openGarage);
+  $('tournament-open').addEventListener('click', () => {
+    showTournament(dailyTournament());
+    $('tournament').showModal();
+  });
+  $('tournament-enter').addEventListener('click', () => {
+    const tournament = dailyTournament();
+    activeTournament = { ...tournament, previousTrack: course.id };
+    $('tournament').close();
+    chooseCategory('sprint', tournament.track.id, false);
+    enterRace();
+  });
   $('gift-open').addEventListener('click', () => {
     refreshGift();
     $('gifts').showModal();
@@ -269,16 +377,15 @@ function initializeHome() {
     save('daily-gift', JSON.stringify({ day, coins: balance + 50 }));
     refreshGift(parseSave('daily-gift', {}).day === day);
   });
-  $('home-road').setAttribute('aria-disabled', 'false');
   $('home-road').addEventListener('click', enterRace);
   window.addEventListener('keydown', (event) => {
-    if ($('home').hidden || $('garage').open || $('gifts').open || event.repeat ||
+    if ($('home').hidden || $('garage').open || $('gifts').open || $('tournament').open || event.repeat ||
         event.ctrlKey || event.metaKey || event.altKey ||
         !['Space', 'Enter'].includes(event.code) || event.target.closest?.('button, select, a, input')) return;
     event.preventDefault();
     enterRace();
-    if (event.code === 'Space') controls.add(event.code);
+    if (event.code === 'Space' && !$('race-intro').hidden) controls.add(event.code);
   });
   $('back-home').addEventListener('click', returnHome);
-  for (const id of ['track', 'garage-open', 'gift-open', 'home-sound']) $(id).disabled = false;
+  for (const id of ['track', 'garage-open', 'gift-open', 'home-sound', 'tournament-open']) $(id).disabled = false;
 }

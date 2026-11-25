@@ -111,6 +111,24 @@ kbd { color: #fff; padding: 1px 5px; border: 1px solid #a1b6cd94; border-radius:
 .result-card canvas { width: clamp(44px, 11vh, 80px); height: auto; }
 .result-card strong { font-size: clamp(1.2rem, 5vw, 2rem); font-variant-numeric: tabular-nums; }
 .race-result button { pointer-events: auto; }
+#tournament-result, #pro-track-unlocked {
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid #ffd264;
+  border-radius: 8px;
+  background: #08203e;
+  color: #ffe29b;
+  font-weight: 750;
+  animation: division-reveal 350ms 180ms ease-out both;
+}
+#pro-track-unlocked { animation-delay: 400ms; }
+@keyframes division-reveal {
+  from { opacity: 0; transform: translateY(12px) scale(.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #tournament-result, #pro-track-unlocked { animation: none; }
+}
 @keyframes result-card-in {
   from { opacity: 0; transform: translateX(var(--result-entry)); }
   to { opacity: 1; transform: translateX(0); }

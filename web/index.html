@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="home.css">
   <script defer src="assets/data.js"></script>
+  <script defer src="assets/reference-ghosts.js"></script>
   <script defer src="physics.js"></script>
   <script defer src="vehicle-effects.js"></script>
   <script defer src="home.js"></script>
@@ -36,6 +37,13 @@
           </div>
           <label for="track" class="visually-hidden">Circuit</label>
           <select id="track" disabled></select>
+        <p id="pro-track-target" hidden></p>
+        <button class="quiet" id="pro-track-sprint" type="button" hidden>Jouer le Sprint</button>
+        <button class="quiet" id="tournament-open" disabled>Tournoi du jour</button>
+        <label id="reference-ghost-option" hidden>
+          <input id="reference-ghost" type="checkbox" checked> Fantôme de référence
+          <span id="reference-ghost-time"></span>
+        </label>
         </div>
     </section>
     <p id="start-hint" class="start-hint"><span class="hint-keyboard"><kbd>Espace</kbd> ou clique sur la piste pour partir</span><span class="hint-touch">Touche la piste pour partir</span></p>
@@ -83,10 +91,12 @@
         </div>
         <div id="result-opponent" class="result-card" hidden>
           <canvas id="result-ghost-car" width="80" height="80" aria-hidden="true"></canvas>
-          <span>Fantôme</span>
+          <span id="result-ghost-label">Fantôme</span>
           <strong id="result-ghost-time"></strong>
         </div>
       </div>
+      <p id="tournament-result" hidden></p>
+      <p id="pro-track-unlocked" hidden></p>
       <button id="result-action" class="race-launch" type="button"></button>
     </section>
     <footer class="race-footer">
@@ -94,6 +104,24 @@
       <p class="race-controls"><span class="hint-keyboard"><kbd>Espace</kbd> Accélérer <kbd>R</kbd> Recommencer</span><span class="hint-touch">Maintiens la piste pour accélérer</span></p>
     </footer>
   </main>
+
+  <dialog id="tournament" class="home-dialog" aria-labelledby="tournament-title">
+    <div class="dialog-header">
+      <div><h2 id="tournament-title">Tournoi du jour</h2><p id="tournament-track"></p></div>
+      <form method="dialog"><button class="quiet">Fermer</button></form>
+    </div>
+    <p id="tournament-best"></p>
+    <table class="results">
+      <thead><tr><th scope="col">Division</th><th scope="col">Chrono cible</th></tr></thead>
+      <tbody>
+        <tr><td>Master</td><td id="tournament-master"></td></tr>
+        <tr><td>Pro</td><td id="tournament-pro"></td></tr>
+        <tr><td>Novice</td><td>Terminer la course</td></tr>
+      </tbody>
+    </table>
+    <p id="tournament-previous" hidden></p>
+    <button id="tournament-enter" class="race-launch" type="button">Participer</button>
+  </dialog>
 
   <dialog id="garage" class="home-dialog" aria-labelledby="garage-title">
     <div class="dialog-header"><div><h2 id="garage-title">Garage</h2><p id="garage-count"></p></div><form method="dialog"><button class="quiet">Fermer</button></form></div>

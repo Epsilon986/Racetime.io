@@ -33,7 +33,7 @@ const save = (key, value) => {
   try { localStorage.setItem('race-time:' + key, value); } catch { /* Storage may be disabled. */ }
 };
 let mode = 'loading';
-let course, scene, player, ghost, replay;
+let course, scene, player, ghost, personalGhost, replay;
 let startTime = 0;
 let litSignals = 0;
 let elapsed = 0;
@@ -382,8 +382,8 @@ function readGhost() {
 function updateHud() {
   $('lap').textContent = Math.min(totalLaps, player.lap) + ' / ' + totalLaps;
   $('time').textContent = clock(elapsed);
-  $('ghost').textContent = ghost ? 'Actif' : 'À créer';
-  $('best').textContent = ghost ? clock(ghost.time) : '–';
+  $('ghost').textContent = ghost?.reference ? 'Référence' : ghost ? 'Actif' : 'À créer';
+  $('best').textContent = personalGhost ? clock(personalGhost.time) : '–';
 }
 
 function selectTrack() {
@@ -407,7 +407,12 @@ function reset() {
   $('car').disabled = false;
   $('notice').hidden = true;
   setupPlayer();
-  ghost = readGhost();
+  personalGhost = readGhost();
+  const reference = referenceGhost(course);
+  const referenceCar = reference && cars.find(({ id }) => id === reference.car);
+  ghost = referenceCar && $('reference-ghost').checked
+    ? { ...reference, car: referenceCar, reference: true }
+    : personalGhost;
   updateHud();
 }
 
@@ -473,18 +478,25 @@ function finish() {
   const opponent = ghost;
   const margin = opponent ? Math.round((elapsed - opponent.time) * 100) : 0;
   retryResult = Boolean(opponent && margin > 0);
-  if (ghost) recordLocalResult(course, ghost.car, ghost.time);
+  const isSprint = course.id.startsWith('short_');
+  const alreadyQualified = isSprint && hasQualifiedForPro(course);
+  if (personalGhost) recordLocalResult(course, personalGhost.car, personalGhost.time);
   recordLocalResult(course, player.car, elapsed);
-  const record = !ghost || elapsed < ghost.time;
+  recordTournamentResult(elapsed);
+  const unlock = $('pro-track-unlocked');
+  unlock.hidden = !isSprint || alreadyQualified || !hasQualifiedForPro(course);
+  if (!unlock.hidden) unlock.textContent = 'Circuit Pro débloqué · ' + course.name;
+  const record = !personalGhost || elapsed < personalGhost.time;
   if (record) {
     save('ghost-v2/' + course.id, JSON.stringify({ time: elapsed, car: player.car.id, points: replay }));
-    ghost = { time: elapsed, car: player.car, points: replay };
+    personalGhost = { time: elapsed, car: player.car, points: replay };
   }
   updateHud();
   $('track').disabled = false;
   $('car').disabled = false;
   play('finish_race');
   if (opponent) {
+    $('result-ghost-label').textContent = opponent.reference ? 'Référence' : 'Fantôme';
     if (!retryResult) play('win_crowd_cheer', 0.6);
     else if (margin < 25) play('lose_crowd_ooh', 0.6);
     play(retryResult ? 'music_lose' : 'music_win', 0.4);

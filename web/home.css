@@ -96,6 +96,11 @@ body:has(.home:not([hidden])) { display: block; }
 @media (pointer: coarse) { .hint-keyboard { display: none; } .hint-touch { display: inline; } }
 .home-dialog { width: min(680px, calc(100% - 28px)); max-height: 84dvh; padding: 20px; border: 1px solid #abcfff64; border-radius: 18px; background: #102947; color: #f4f8ff; }
 .home-dialog::backdrop { background: #020b17cb; }
+#pro-track-target { margin: 0; color: #ffe29b; font-size: .875rem; }
+#tournament[open] { animation: division-reveal 240ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  #tournament[open] { animation: none; }
+}
 .dialog-header { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 17px; }
 .garage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; }
 .garage-car { display: grid; justify-items: center; align-content: start; gap: 7px; border: 1px solid #45617c; background: #122f4f; padding: 8px 4px; font-size: .875rem; }
