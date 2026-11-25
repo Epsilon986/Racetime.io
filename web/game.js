@@ -95,48 +95,15 @@ function prepareSustain(buffer) {
     for (let i = start; i < start + windowSize; i++) energy += channel[i] ** 2;
     levels.push(energy / windowSize);
   }
-  if (levels.length < 5) return { buffer, loopStart: 0, loopEnd: length / sampleRate };
-
-  // Keep the original attack and prolong only the last sustained part before the fade-out.
-  const peak = Math.max(...levels);
-  const sustainFloor = peak * 0.5;
-  let endWindow = levels.length;
-  while (endWindow > 5 && !levels.slice(endWindow - 4, endWindow).every((level) => level >= sustainFloor)) {
-    endWindow--;
-  }
-  let startWindow = endWindow - 4;
-  while (startWindow > 1 && endWindow - startWindow < 10 && levels[startWindow - 1] >= sustainFloor) {
-    startWindow--;
-  }
-  const start = startWindow * windowSize;
-  const nominalEnd = endWindow * windowSize;
-  const overlap = Math.min(start, Math.round(sampleRate * 0.028), (nominalEnd - start) >> 2);
-  // Match the waveform phase near the end before blending into the loop start.
-  let end = nominalEnd;
-  let bestMatch = -Infinity;
-  const search = Math.round(sampleRate * 0.01);
-  for (let candidate = nominalEnd - search; candidate <= nominalEnd; candidate += 2) {
-    let dot = 0;
-    let headEnergy = 0;
-    let tailEnergy = 0;
-    for (let i = 0; i < overlap; i += 4) {
-      const head = channel[start - overlap + i];
-      const tail = channel[candidate - overlap + i];
-      dot += head * tail;
-      headEnergy += head * head;
-      tailEnergy += tail * tail;
-    }
-    const match = dot / (Math.sqrt(headEnergy * tailEnergy) || 1);
-    if (match > bestMatch) {
-      bestMatch = match;
-      end = candidate;
-    }
-  }
+  const floor = Math.max(...levels) * 0.07;
+  const lastAudible = levels.findLastIndex((level) => level >= floor);
+  const end = Math.min(length, Math.max(Math.round(sampleRate * 0.12), (lastAudible + 1) * windowSize));
+  const start = end - Math.min(Math.round(end * 0.55), Math.round(sampleRate * 0.65));
+  const overlap = Math.min(start, Math.round(sampleRate * 0.025), (end - start) >> 2);
   for (let index = 0; index < buffer.numberOfChannels; index++) {
     const samples = buffer.getChannelData(index);
     for (let i = 0; i < overlap; i++) {
-      const progress = overlap === 1 ? 1 : i / (overlap - 1);
-      const mix = progress * progress * (3 - 2 * progress);
+      const mix = (i + 1) / overlap;
       samples[end - overlap + i] = samples[end - overlap + i] * (1 - mix) + samples[start - overlap + i] * mix;
     }
   }
@@ -188,10 +155,8 @@ function setEngineVolume(name, volume) {
       source.start();
     });
   }
-  if (engineVoice.volume !== volume) {
-    engineVoice.volume = volume;
-    engineVoice.gain?.gain.setTargetAtTime(volume, soundContext.currentTime, 0.012);
-  }
+  engineVoice.volume = volume;
+  engineVoice.gain?.gain.setTargetAtTime(volume, soundContext.currentTime, 0.012);
 }
 
 function stopRaceAudio() {
