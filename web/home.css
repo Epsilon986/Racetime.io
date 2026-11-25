@@ -96,11 +96,227 @@ body:has(.home:not([hidden])) { display: block; }
 @media (pointer: coarse) { .hint-keyboard { display: none; } .hint-touch { display: inline; } }
 .home-dialog { width: min(680px, calc(100% - 28px)); max-height: 84dvh; padding: 20px; border: 1px solid #abcfff64; border-radius: 18px; background: #102947; color: #f4f8ff; }
 .home-dialog::backdrop { background: #020b17cb; }
-#pro-track-target { margin: 0; color: #ffe29b; font-size: .875rem; }
-#tournament[open] { animation: division-reveal 240ms ease-out; }
-@media (prefers-reduced-motion: reduce) {
-  #tournament[open] { animation: none; }
+.solo-mode-label {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: var(--road-axis, 50%);
+  margin: 0;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #d9ff9d;
+  font-size: .9rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 6px #061522;
+  white-space: nowrap;
+  pointer-events: none;
 }
+.mode-leaving { position: fixed; inset: 0; z-index: 4; }
+#tournament-road { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tournament-header {
+  position: absolute;
+  z-index: 3;
+  inset: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 10px 14px 20px;
+  background: linear-gradient(180deg, #061522bc, transparent);
+  color: #d9ff9d;
+  font-weight: 800;
+  text-shadow: 0 2px 6px #061522;
+  pointer-events: none;
+}
+#tournament-clock { color: white; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.tournament-logo {
+  position: absolute;
+  top: clamp(12px, 2.5vh, 25px);
+  left: clamp(12px, 3vw, 48px);
+  width: clamp(78px, 18vw, 228px);
+  height: auto;
+  filter: drop-shadow(0 3px 6px #061522b8);
+}
+.tournament-tabs { display: flex; gap: 8px; pointer-events: auto; }
+.tournament-tabs button {
+  min-width: clamp(115px, 16vw, 176px);
+  min-height: 46px;
+  border: 2px solid #b9d8ed80;
+  background: #0d2842e8;
+  color: #f1f8ff;
+  font-size: clamp(1rem, 2.1vw, 1.3rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  box-shadow: 0 4px #061522b8;
+}
+.tournament-tabs button[aria-pressed="true"] { border-color: #edffb0; background: #d9ff73; color: #243501; }
+.tournament-info { top: clamp(145px, 22vh, 200px); width: min(24vw, 290px); }
+.tournament-info h1:focus { outline: none; }
+#tournament-preview {
+  display: block;
+  width: min(100%, 235px);
+  height: auto;
+  margin-bottom: 10px;
+  border: 1px solid #dcf5ff60;
+  border-radius: 16px;
+  background: #051b2caf;
+}
+#tournament-track { margin-top: 7px; text-transform: uppercase; letter-spacing: .12em; font-size: .82rem; }
+#tournament-best, #tournament-previous { color: #edf7ff; font-size: .88rem; font-weight: 650; }
+#tournament-enter { margin-top: 10px; pointer-events: auto; }
+#tournament-locate { margin: 10px 0 0; pointer-events: auto; }
+.mode-nav-button { position: absolute; z-index: 3; bottom: 12px; }
+#solo-open { right: 15px; }
+#tournament-open { left: 15px; }
+#home .home-ranking { top: auto; bottom: max(66px, 10%); }
+#tournament-pro-lock { color: #ffe29b; }
+.tournament-road-scroll {
+  position: absolute;
+  z-index: 2;
+  inset: 132px auto 60px 50%;
+  transform: translateX(-50%);
+  width: min(43vw, 510px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  scroll-snap-type: y mandatory;
+  container-type: size;
+}
+.tournament-road-scroll::-webkit-scrollbar { display: none; }
+#tournament-racers { margin: 0; padding: max(0px, calc(50cqh - 80px)) 6px; list-style: none; }
+#tournament-racers li { margin-bottom: 30px; }
+#tournament-racers li:has(.tournament-racer) { scroll-snap-align: center; scroll-snap-stop: always; }
+#tournament-racers .tournament-marker {
+  --division-color: #ffc850;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 0 auto 22px;
+  min-height: 42px;
+  background: linear-gradient(var(--division-color), var(--division-color)) center / 90% 4px no-repeat;
+  color: #18243b;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+#tournament-racers [data-division="pro"] { --division-color: #70ddff; }
+#tournament-racers [data-division="novice"] { --division-color: #b0ed76; }
+.tournament-division-badge, .tournament-marker strong {
+  padding: 6px 11px;
+  border: 3px solid #142135;
+  box-shadow: 0 4px #142135;
+}
+.tournament-division-badge {
+  border-radius: 9px 0 0 9px;
+  background: var(--division-color);
+  text-transform: uppercase;
+  letter-spacing: .045em;
+}
+.tournament-marker strong {
+  border-left: 0;
+  border-radius: 0 9px 9px 0;
+  background: #fff8de;
+}
+.tournament-racer {
+  position: relative;
+  --tournament-car-size: clamp(92px, 12vw, 132px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--tournament-car-size) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 4px;
+  width: 100%;
+  min-height: 160px;
+  padding: 0;
+  color: white;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.tournament-racer canvas {
+  position: absolute;
+  top: calc(50% - 140px);
+  left: calc(50% - 140px);
+  width: 280px;
+  height: 280px;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 2px #0007);
+  animation: tournament-car-drive 1.6s ease-in-out infinite alternate;
+}
+#tournament-racers li:nth-child(even) canvas { animation-delay: -.8s; }
+.tournament-racer-caption {
+  position: relative;
+  grid-column: 3;
+  display: grid;
+  justify-self: start;
+  gap: 2px;
+  padding: 5px 8px;
+  border: 3px solid #142135;
+  border-radius: 11px;
+  background: #fff8de;
+  box-shadow: 0 4px #142135;
+  color: #233755;
+  font-size: clamp(.72rem, 1.6vw, .95rem);
+  font-weight: 850;
+}
+.tournament-racer-caption::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -7px;
+  width: 8px;
+  height: 8px;
+  transform: translateY(-50%) rotate(45deg);
+  border: solid #142135;
+  border-width: 0 0 3px 3px;
+  background: inherit;
+}
+#tournament-self .tournament-racer-caption { background: #d9ff87; }
+.tournament-racer strong { color: #183c78; font-size: 1.16em; font-variant-numeric: tabular-nums; }
+button.tournament-racer:hover .tournament-racer-caption { background: #ffdf79; }
+.tournament-racer[aria-pressed="true"] canvas { filter: drop-shadow(0 0 8px #ffe878) drop-shadow(0 6px 2px #0008); }
+.tournament-racer[aria-pressed="true"] .tournament-racer-caption { border-color: #906900; }
+.tournament-racer:focus-visible { outline-offset: -2px; }
+.tournament-selection {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  right: clamp(12px, 2vw, 42px);
+  transform: translateY(-50%);
+  width: min(23vw, 240px);
+  padding: 12px 0 12px 13px;
+  border-left: 3px solid #d9ff73;
+  background: linear-gradient(90deg, #061a2bd9, #061a2b30 85%, transparent);
+  color: #fff;
+  text-shadow: 0 2px 5px #051421;
+}
+.tournament-selection h2, .tournament-selection p { margin: 0 0 4px; }
+#tournament-selected-car { color: #deedfa; font-size: .88rem; }
+#tournament-selected-time { color: #fff2a4; font-size: clamp(1.1rem, 2.6vw, 2rem); font-weight: 900; font-variant-numeric: tabular-nums; }
+#tournament-selected-division {
+  display: table;
+  margin: 5px 0;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: #b0ed76;
+  color: #15253b;
+  font-size: .76rem;
+  font-weight: 900;
+  text-shadow: none;
+  text-transform: uppercase;
+}
+#tournament-selected-division[data-division="pro"] { background: #70ddff; }
+#tournament-selected-division[data-division="master"] { background: #ffc850; }
+.tournament-selection #tournament-enter { margin-top: 7px; text-shadow: none; }
+@keyframes tournament-car-drive {
+  from { transform: translate(-4px, 2px) rotate(-2deg); }
+  to { transform: translate(4px, -3px) rotate(2deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tournament-racer canvas { animation: none; }
+}
+#pro-track-target { margin: 0; color: #ffe29b; font-size: .875rem; }
 .dialog-header { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 17px; }
 .garage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; }
 .garage-car { display: grid; justify-items: center; align-content: start; gap: 7px; border: 1px solid #45617c; background: #122f4f; padding: 8px 4px; font-size: .875rem; }
@@ -117,11 +333,37 @@ body:has(.home:not([hidden])) { display: block; }
     background: linear-gradient(180deg, #061522df, #061522b0 23%, transparent 43%, transparent 63%, #061522d6 80%, #061522f7);
   }
   .home-logo { width: clamp(112px, 29vw, 200px); }
+  .tournament-logo { width: clamp(72px, 22vw, 132px); }
   .home-actions { gap: 3px; }
   .home-action { min-width: 50px; font-size: .75rem; }
   .home-action canvas { width: 34px; height: 34px; }
   .home-circuit { top: clamp(85px, 13%, 145px); left: 18px; right: 18px; width: auto; text-align: center; }
   .home-circuit h1 { font-size: clamp(2rem, 8vw, 3.6rem); }
+  #home .home-header { top: 32px; }
+  #home .home-circuit { top: clamp(110px, 17%, 145px); }
+  .tournament-info { top: 132px; font-size: .82rem; padding-right: 92px; text-align: left; }
+  .tournament-info h1 { font-size: clamp(1.6rem, 6vw, 2.4rem); }
+  #tournament-preview { position: absolute; top: 1px; right: 0; width: 86px; }
+  #tournament-track { margin-top: 4px; }
+  .tournament-info #tournament-previous { font-size: .76rem; }
+  .tournament-road-scroll { inset: max(265px, 41%) auto 156px 50%; width: min(92vw, 340px); }
+  .tournament-selection {
+    top: auto;
+    right: 12px;
+    bottom: 64px;
+    left: 12px;
+    width: auto;
+    padding: 5px 9px;
+    transform: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 8px;
+    font-size: .82rem;
+  }
+  .tournament-selection h2, .tournament-selection p { grid-column: 1; margin: 0; }
+  #tournament-selected-division { grid-column: 1; justify-self: start; margin: 2px 0 0; }
+  .tournament-selection #tournament-enter { grid-area: 1 / 2 / span 4; margin: 0; min-height: 42px; }
   .circuit-controls { max-width: 260px; margin: 10px auto 0; }
   .circuit-modes { justify-content: center; gap: 20px; }
   .home-ranking { top: auto; bottom: 17px; left: 18px; right: 18px; width: auto; max-width: 380px; margin-inline: auto; }

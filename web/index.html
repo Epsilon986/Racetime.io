@@ -26,6 +26,7 @@
         <button class="home-action" id="home-sound" aria-pressed="true" disabled><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas><span id="home-sound-label">Son activé</span></button>
       </div>
     </header>
+    <p class="solo-mode-label">Course libre</p>
 
     <section class="home-circuit" aria-labelledby="home-track-name">
         <p id="home-race-type">Sprint · 2 tours</p>
@@ -39,7 +40,6 @@
           <select id="track" disabled></select>
         <p id="pro-track-target" hidden></p>
         <button class="quiet" id="pro-track-sprint" type="button" hidden>Jouer le Sprint</button>
-        <button class="quiet" id="tournament-open" disabled>Tournoi du jour</button>
         <label id="reference-ghost-option" hidden>
           <input id="reference-ghost" type="checkbox" checked> Fantôme de référence
           <span id="reference-ghost-time"></span>
@@ -63,6 +63,7 @@
         <p id="home-status" class="ranking-empty" role="status" hidden></p>
     </section>
     <select id="car" aria-label="Véhicule sélectionné" hidden></select>
+    <button class="quiet mode-nav-button" id="tournament-open" type="button" disabled>← Tournoi</button>
   </main>
 
   <div id="race-intro" class="race-intro" hidden aria-hidden="true">
@@ -73,7 +74,7 @@
   <main id="race-screen" class="race-screen" hidden>
     <canvas id="race" tabindex="0" aria-label="Circuit vu du dessus" aria-keyshortcuts="R Space Enter Escape"></canvas>
     <header class="race-header">
-      <button id="back-home" class="home-action"><img class="race-logo" src="assets/logo.png" alt="">Accueil</button>
+      <button id="back-home" class="home-action"><img class="race-logo" src="assets/logo.png" alt=""><span id="back-home-label">Accueil</span></button>
       <div class="hud" aria-label="Statistiques de course">
         <div><span>TOUR</span><strong id="lap">1 / 2</strong></div>
         <div><span>CHRONO</span><strong id="time">0:00.00</strong></div>
@@ -100,28 +101,43 @@
       <button id="result-action" class="race-launch" type="button"></button>
     </section>
     <footer class="race-footer">
-      <div class="record"><span>RECORD LOCAL</span><strong id="best">–</strong></div>
+      <div class="record"><span id="best-label">RECORD LOCAL</span><strong id="best">–</strong></div>
       <p class="race-controls"><span class="hint-keyboard"><kbd>Espace</kbd> Accélérer <kbd>R</kbd> Recommencer</span><span class="hint-touch">Maintiens la piste pour accélérer</span></p>
     </footer>
   </main>
 
-  <dialog id="tournament" class="home-dialog" aria-labelledby="tournament-title">
-    <div class="dialog-header">
-      <div><h2 id="tournament-title">Tournoi du jour</h2><p id="tournament-track"></p></div>
-      <form method="dialog"><button class="quiet">Fermer</button></form>
-    </div>
-    <p id="tournament-best"></p>
-    <table class="results">
-      <thead><tr><th scope="col">Division</th><th scope="col">Chrono cible</th></tr></thead>
-      <tbody>
-        <tr><td>Master</td><td id="tournament-master"></td></tr>
-        <tr><td>Pro</td><td id="tournament-pro"></td></tr>
-        <tr><td>Novice</td><td>Terminer la course</td></tr>
-      </tbody>
-    </table>
-    <p id="tournament-previous" hidden></p>
-    <button id="tournament-enter" class="race-launch" type="button">Participer</button>
-  </dialog>
+  <main id="tournament" class="home tournament-page" aria-labelledby="tournament-title" hidden>
+    <canvas id="tournament-road" aria-hidden="true"></canvas>
+    <header class="tournament-header">
+      <img class="tournament-logo" src="assets/logo.png" alt="Race Time">
+      <span>Tournoi du jour</span>
+      <time id="tournament-clock" aria-label="Temps restant"></time>
+      <div class="tournament-tabs" role="group" aria-label="Circuit du tournoi">
+        <button id="tournament-sprint-tab" class="quiet" type="button" aria-pressed="true">Sprint</button>
+        <button id="tournament-pro-tab" class="quiet" type="button" aria-pressed="false">Pro</button>
+      </div>
+    </header>
+    <section class="home-circuit tournament-info">
+      <canvas id="tournament-preview" width="300" height="184" role="img" aria-label="Aperçu du circuit"></canvas>
+      <h1 id="tournament-title" tabindex="-1"></h1>
+      <p id="tournament-track"></p>
+      <p id="tournament-best"></p>
+      <p id="tournament-pro-lock" role="status" hidden></p>
+      <p id="tournament-previous" hidden></p>
+      <button id="tournament-locate" class="quiet" type="button">Me retrouver</button>
+    </section>
+    <section id="tournament-road-scroll" class="tournament-road-scroll" tabindex="0" aria-label="Pilotes du tournoi sur la route">
+      <ol id="tournament-racers"></ol>
+    </section>
+    <aside class="tournament-selection" aria-labelledby="tournament-selected-name">
+      <h2 id="tournament-selected-name"></h2>
+      <p id="tournament-selected-car"></p>
+      <p id="tournament-selected-time"></p>
+      <span id="tournament-selected-division" hidden></span>
+      <button id="tournament-enter" class="race-launch" type="button">Participer</button>
+    </aside>
+    <button class="quiet mode-nav-button" id="solo-open" type="button">Course libre →</button>
+  </main>
 
   <dialog id="garage" class="home-dialog" aria-labelledby="garage-title">
     <div class="dialog-header"><div><h2 id="garage-title">Garage</h2><p id="garage-count"></p></div><form method="dialog"><button class="quiet">Fermer</button></form></div>

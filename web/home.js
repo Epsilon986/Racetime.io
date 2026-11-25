@@ -1,16 +1,173 @@
 ﻿'use strict';
 
 let activeTournament = null;
+let displayedTournament = null;
+let tournamentMode = 'sprint';
+let lastTournamentClock = '';
+const tournamentScroll = new Map();
+const tournamentFields = new Map();
+const tournamentScore = (seconds) => seconds.toFixed(2).replace('.', ',') + ' s';
+let tournamentRows = [];
+let selectedTournamentRow = null;
+let tournamentVehicleScale = 0;
+
+function centerTournamentRow(row, behavior = 'instant') {
+  const road = $('tournament-road-scroll');
+  const distance = row.getBoundingClientRect().top - road.getBoundingClientRect().top +
+    (row.offsetHeight - road.clientHeight) / 2;
+  road.scrollTo({ top: road.scrollTop + distance, behavior });
+}
+
+function updateTournamentSelection() {
+  const road = $('tournament-road-scroll');
+  if (!$('tournament').hidden && road.clientHeight && tournamentRows.length) {
+    const center = road.getBoundingClientRect().top + road.clientHeight / 2;
+    let nearest = null;
+    let distance = Infinity;
+    for (const row of tournamentRows) {
+      const offset = Math.abs(row.element.getBoundingClientRect().top + row.element.offsetHeight / 2 - center);
+      if (offset < distance) {
+        nearest = row;
+        distance = offset;
+      }
+    }
+    if (nearest === selectedTournamentRow) return;
+    selectedTournamentRow?.button.setAttribute('aria-pressed', 'false');
+    selectedTournamentRow = nearest;
+    nearest.button.setAttribute('aria-pressed', 'true');
+    const { entry } = nearest;
+    $('tournament-selected-name').textContent = entry.name;
+    $('tournament-selected-car').textContent = entry.car.name;
+    $('tournament-selected-time').textContent = entry.time === null ? 'Aucun chrono' : tournamentScore(entry.time);
+    const badge = $('tournament-selected-division');
+    badge.hidden = entry.time === null;
+    if (!badge.hidden) {
+      const division = tournamentDivision(displayedTournament, Math.round(entry.time * 100));
+      badge.textContent = division;
+      badge.dataset.division = division.toLowerCase();
+    }
+    $('tournament-enter').textContent = entry.points ? 'Affronter' : 'Participer';
+  }
+}
+
+function tournamentOpponents(track) {
+  if (tournamentFields.has(track.id)) return tournamentFields.get(track.id);
+  const reference = referenceGhost(track);
+  const opponents = [{ ...reference, name: 'Référence', car: cars.find(({ id }) => id === reference.car) }];
+  track.paths ??= racePhysics.build(track.lanes);
+  for (let index = 0; index < 5; index++) {
+    const car = cars[index];
+    const racer = racePhysics.create(track.paths, car);
+    const points = [racePhysics.pose(racer)];
+    let ticks = 0;
+    while (racer.lap <= totalLaps && ticks < 15000) {
+      racePhysics.advance(racer, ticks % (95 + index * 13) < 95);
+      ticks++;
+      if (ticks % replayInterval === 0 || racer.lap > totalLaps) points.push(racePhysics.pose(racer));
+    }
+    if (racer.lap > totalLaps) opponents.push({
+      name: 'Pilote IA ' + (index + 1), car, time: ticks * racePhysics.step, points,
+    });
+  }
+  tournamentFields.set(track.id, opponents);
+  return opponents;
+}
+
+function startTournament(opponent) {
+  if (!$('race-intro').hidden) return;
+  const today = dailyTournament(new Date(), tournamentMode);
+  if (today.day !== displayedTournament?.day) {
+    openTournamentPage();
+    return;
+  }
+  tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
+  activeTournament = { ...today, opponent };
+  selectTrack(today.track.id);
+  enterRace();
+}
+
+function showTournamentRacers(tournament, best) {
+  tournamentRows = [];
+  tournamentVehicleScale = 0;
+  selectedTournamentRow = null;
+  const opponents = tournamentOpponents(tournament.track);
+  const selectedCar = cars.find(({ id }) => id === $('car').value) ?? cars[0];
+  const self = { name: 'Toi', time: best ? best.time / 100 : null, car: selectedCar };
+  const entries = [self, ...opponents, ...['Master', 'Pro'].map((name) => ({
+    name, marker: true, time: tournament[name.toLowerCase()] / 100,
+  })), { name: 'Novice', marker: true, time: (tournament.pro + 1) / 100 }]
+    .sort((a, b) => (a.time ?? Infinity) - (b.time ?? Infinity));
+  let previousTime = null;
+  $('tournament-racers').replaceChildren(...entries.map((entry) => {
+    const row = document.createElement('li');
+    if (previousTime !== null && entry.time !== null) {
+      row.style.marginTop = Math.min(112, Math.round((entry.time - previousTime) * 7)) + 'px';
+    }
+    previousTime = entry.time;
+    if (entry.marker) {
+      row.className = 'tournament-marker';
+      row.dataset.division = entry.name.toLowerCase();
+      const badge = document.createElement('span');
+      badge.className = 'tournament-division-badge';
+      badge.textContent = entry.name;
+      const time = document.createElement('strong');
+      time.textContent = tournamentScore(entry.time);
+      row.append(badge, time);
+      return row;
+    }
+    if (entry === self) row.id = 'tournament-self';
+    const card = document.createElement('button');
+    card.className = 'tournament-racer';
+    const icon = document.createElement('canvas');
+    icon.width = icon.height = 320;
+    icon.setAttribute('aria-hidden', 'true');
+    const caption = document.createElement('span');
+    caption.className = 'tournament-racer-caption';
+    const label = document.createElement('span');
+    label.textContent = entry.name;
+    caption.append(label);
+    if (entry.time !== null) {
+      const time = document.createElement('strong');
+      time.textContent = tournamentScore(entry.time);
+      caption.append(time);
+    }
+    card.append(icon, caption);
+    card.type = 'button';
+    card.setAttribute('aria-label', entry.name + (entry.time === null ? '' : ' · ' + tournamentScore(entry.time)));
+    card.setAttribute('aria-pressed', 'false');
+    card.addEventListener('click', () => centerTournamentRow(row, homeMotion.matches ? 'instant' : 'smooth'));
+    tournamentRows.push({ element: row, button: card, icon, entry });
+    row.append(card);
+    return row;
+  }));
+}
 function referenceGhost(track) {
   return window.referenceGhosts?.[track.id] ?? null;
 }
 
-function dailyTournament(date = new Date()) {
+function dailyTournament(date = new Date(), category = 'sprint') {
   const day = Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000);
   const sprintTracks = tracks.filter(({ id }) => id.startsWith('short_'));
-  const track = sprintTracks[((day % sprintTracks.length) + sprintTracks.length) % sprintTracks.length];
+  const sprint = sprintTracks[((day % sprintTracks.length) + sprintTracks.length) % sprintTracks.length];
+  const track = category === 'pro'
+    ? tracks.find(({ id }) => id === sprint.id.replace(/^short_track_0?/, 'track_'))
+    : sprint;
   const pro = proTarget(track);
-  return { day, track, master: Math.round(pro * 0.95), pro };
+  const endsAt = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime();
+  return { day, track, category, endsAt, master: Math.round(pro * 0.95), pro };
+}
+
+function tournamentHistoryKey(tournament) {
+  return tournament.category === 'pro' ? 'tournament-results-pro' : 'tournament-results';
+}
+
+function tournamentBest(tournament) {
+  return parseSave(tournamentHistoryKey(tournament), {})[tournament.day];
+}
+
+function tournamentProUnlocked() {
+  const sprint = dailyTournament();
+  return (tournamentBest(sprint)?.time ?? Infinity) <= sprint.pro;
 }
 
 function tournamentDivision(tournament, time) {
@@ -47,20 +204,26 @@ function refreshProTrack() {
 }
 
 function showTournament(tournament) {
-  const history = parseSave('tournament-results', {});
+  const history = parseSave(tournamentHistoryKey(tournament), {});
   const best = history[tournament.day];
-  $('tournament-track').textContent = tournament.track.name + ' · Sprint · ' + totalLaps + ' tours';
+  $('tournament-title').textContent = tournament.track.name;
+  $('tournament-track').textContent = totalLaps + ' tours';
+  paintCircuitPreview($('tournament-preview'), tournament.track);
+  showTournamentRacers(tournament, best);
   $('tournament-best').textContent = best
-    ? 'Meilleur chrono local · ' + clock(best.time / 100) + ' · Division ' + tournamentDivision(tournament, best.time)
-    : 'Termine une course pour obtenir ta division du jour.';
-  $('tournament-master').textContent = clock(tournament.master / 100);
-  $('tournament-pro').textContent = clock(tournament.pro / 100);
+    ? 'Ton record · ' + tournamentScore(best.time / 100)
+    : 'Premier chrono à établir';
+  const proUnlocked = tournamentProUnlocked();
+  $('tournament-pro-tab').textContent = proUnlocked ? 'Pro' : 'Pro 🔒';
+  $('tournament-sprint-tab').setAttribute('aria-pressed', String(tournament.category === 'sprint'));
+  $('tournament-pro-tab').setAttribute('aria-pressed', String(tournament.category === 'pro'));
+  $('tournament-pro-lock').hidden = true;
   const previousDay = Object.keys(history).map(Number).filter((day) => day < tournament.day).sort((a, b) => b - a)[0];
   const previous = history[previousDay];
   $('tournament-previous').hidden = !previous;
   if (previous) {
     $('tournament-previous').textContent = 'Dernier résultat · ' + previous.track + ' · ' +
-      clock(previous.time / 100) + ' · Division ' + previous.division;
+      tournamentScore(previous.time / 100) + ' · ' + previous.division;
   }
 }
 
@@ -69,12 +232,13 @@ function recordTournamentResult(seconds) {
   label.hidden = !activeTournament;
   if (!activeTournament) return;
   const { day, track } = activeTournament;
-  const history = parseSave('tournament-results', {});
+  const key = tournamentHistoryKey(activeTournament);
+  const history = parseSave(key, {});
   const time = Math.round(seconds * 100);
   if (!history[day] || time < history[day].time) {
-    history[day] = { time, track: track.name, division: tournamentDivision(activeTournament, time) };
+    history[day] = { time, track: track.name, division: tournamentDivision(activeTournament, time), car: player.car.id };
     const days = Object.keys(history).sort((a, b) => Number(b) - Number(a)).slice(0, 30);
-    save('tournament-results', JSON.stringify(Object.fromEntries(days.map((key) => [key, history[key]]))));
+    save(key, JSON.stringify(Object.fromEntries(days.map((entry) => [entry, history[entry]]))));
   }
   label.textContent = 'Tournoi du jour · Division ' + tournamentDivision(activeTournament, history[day].time);
 }
@@ -121,44 +285,84 @@ function drawHomeIcon(canvas, name, scale = 1, angle = 0) {
 
 const homeMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let roadTravel = 0;
+let tournamentRoadTravel = 0;
 
-function paintHomeRoad(dt) {
-  const board = $('home-road');
+function homeRoadScale(width, tournament) {
+  const base = Math.max(0.88, Math.min(1.7, width / (width > 750 ? 810 : 385)));
+  return base * (tournament ? (width > 750 ? 1.55 : 1.3) : 1);
+}
+
+function tournamentVehicleExtent(car) {
+  let radius = 0;
+  for (const visual of car.images) {
+    if (visual.alpha === 0 || (visual.shadowIcon && !visual.shadow) ||
+        !effectEnabled(visual, { powered: true }, true)) continue;
+    const offset = Math.hypot(visual.x, visual.y) + Math.abs(visual.parallax ?? 0);
+    radius = Math.max(radius, offset + Math.hypot(visual.width, visual.height) / 2);
+  }
+  return radius;
+}
+
+function paintTournamentVehicles(scale) {
+  if (scale === tournamentVehicleScale) return;
+  tournamentVehicleScale = scale;
+  for (const { icon, button, entry } of tournamentRows) {
+    const extent = tournamentVehicleExtent(entry.car) * scale;
+    button.style.minHeight = Math.max(160, Math.ceil(extent * 2 + 24)) + 'px';
+    const dc = icon.getContext('2d');
+    dc.resetTransform();
+    dc.clearRect(0, 0, icon.width, icon.height);
+    dc.translate(icon.width / 2, icon.height / 2);
+    const drawingScale = scale * icon.width / icon.clientWidth;
+    dc.scale(drawingScale, drawingScale);
+    drawVehicle(dc, entry.car, { x: 0, y: 0, angle: 0 }, { powered: true });
+  }
+}
+
+function paintHomeRoad(dt, board = $('home-road'), roadCourse = course, tournamentScroll = null) {
   const width = board.clientWidth;
   const height = board.clientHeight;
-  if (!course || !width || !height) return;
+  if (!roadCourse || !width || !height) return;
   const ratio = Math.min(2, window.devicePixelRatio || 1);
+  const tournament = tournamentScroll !== null;
+  const axis = tournament || width <= 750 ? 0.5 : 0.56;
   if (board.width !== Math.round(width * ratio) || board.height !== Math.round(height * ratio)) {
     board.width = Math.round(width * ratio);
     board.height = Math.round(height * ratio);
   }
+  if (!tournament && board.parentElement.dataset.roadAxis !== String(axis)) {
+    board.parentElement.dataset.roadAxis = String(axis);
+    board.parentElement.style.setProperty('--road-axis', axis * 100 + '%');
+  }
   const dc = board.getContext('2d');
   const car = player.car;
-  const center = width * (width > 750 ? 0.56 : 0.5);
-  const scale = Math.max(0.88, Math.min(1.7, width / (width > 750 ? 810 : 385)));
+  const center = width * axis;
+  const scale = homeRoadScale(width, tournament);
   const tileHeight = 256 * scale;
-  const terrain = course.menuTerrain;
-  const road = sheets['road_ui_straight_' + course.menuRoad];
+  const terrain = roadCourse.menuTerrain;
+  const road = sheets['road_ui_straight_' + roadCourse.menuRoad];
   const sceneryPeriod = 8;
   const scenerySpacing = 205;
   const speed = homeMotion.matches ? 0 : 300;
-  roadTravel += dt * speed;
+  if (tournamentScroll === null) roadTravel += dt * speed;
+  else tournamentRoadTravel += dt * speed;
+  const travel = tournamentScroll === null ? roadTravel : tournamentRoadTravel - tournamentScroll / scale;
 
   dc.setTransform(ratio, 0, 0, ratio, 0, 0);
-  dc.fillStyle = color(terrain[0].color ?? course.background);
+  dc.fillStyle = color(terrain[0].color ?? roadCourse.background);
   dc.fillRect(0, 0, center + 1, height);
-  dc.fillStyle = color(terrain[1].color ?? course.background);
+  dc.fillStyle = color(terrain[1].color ?? roadCourse.background);
   dc.fillRect(center, 0, width - center, height);
 
-  for (let y = loop(roadTravel * scale, tileHeight) - tileHeight; y < height; y += tileHeight) {
+  for (let y = loop(travel * scale, tileHeight) - tileHeight; y < height; y += tileHeight) {
     dc.drawImage(road, center - 256 * scale, Math.floor(y), 512 * scale, Math.ceil(tileHeight));
   }
 
   for (const [side, area] of terrain.entries()) {
     if (!area.objects.length) continue;
     for (let row = -1; row <= Math.ceil(height / (scenerySpacing * scale)); row++) {
-      const index = loop(row - Math.floor(roadTravel / scenerySpacing), sceneryPeriod);
-      const y = (row * scenerySpacing + loop(roadTravel, scenerySpacing)) * scale;
+      const index = loop(row - Math.floor(travel / scenerySpacing), sceneryPeriod);
+      const y = (row * scenerySpacing + loop(travel, scenerySpacing)) * scale;
       const distance = 152 + loop(index * 91 + side * 75, 148);
       const x = center + (side === 0 ? -1 : 1) * distance * scale;
       dc.save();
@@ -170,6 +374,10 @@ function paintHomeRoad(dt) {
     }
   }
 
+  if (tournament) {
+    paintTournamentVehicles(scale);
+    return;
+  }
   const carX = center + Math.sin(roadTravel / 270) * 12 * scale;
   const carY = height * (width > 750 ? 0.55 : 0.51) + Math.sin(roadTravel / 140) * 12 * scale;
   dc.save();
@@ -193,10 +401,9 @@ function refreshHome() {
   refreshGift();
 }
 
-function paintCircuitPreview() {
-  const board = $('circuit-preview');
+function paintCircuitPreview(board = $('circuit-preview'), track = course) {
   const dc = board.getContext('2d');
-  const points = course.lanes[1];
+  const points = track.lanes[1];
   const xs = points.map(([x]) => x);
   const ys = points.map(([, y]) => y);
   const minX = Math.min(...xs);
@@ -224,21 +431,17 @@ function paintCircuitPreview() {
   dc.strokeStyle = '#0c1820';
   dc.lineWidth = 3;
   dc.stroke();
-  board.setAttribute('aria-label', 'Aperçu du circuit ' + course.name);
+  board.setAttribute('aria-label', 'Aperçu du circuit ' + track.name);
 }
 
-function chooseCategory(category, preferredTrack, remember = true) {
+function chooseCategory(category, preferredTrack) {
   for (const button of document.querySelectorAll('[data-category]')) {
     button.setAttribute('aria-pressed', String(button.dataset.category === category));
   }
   const options = tracks.filter((track) => track.id.startsWith('short_') === (category === 'sprint'));
   $('track').replaceChildren(...options.map(({ id, name }) => new Option(name, id)));
   if (options.some(({ id }) => id === preferredTrack)) $('track').value = preferredTrack;
-  if (remember) chooseTrack();
-  else {
-    selectTrack();
-    refreshHome();
-  }
+  chooseTrack();
 }
 
 function chooseTrack() {
@@ -302,30 +505,102 @@ function refreshGift(justClaimed = false) {
 }
 
 function enterRace() {
-  if (!$('race-intro').hidden || $('home-road').getAttribute('aria-disabled') === 'true') return;
-  $('home').inert = true;
+  if (!$('race-intro').hidden || (!activeTournament && $('home-road').getAttribute('aria-disabled') === 'true')) return;
+  $(activeTournament ? 'tournament' : 'home').inert = true;
   startRace({ intro: true });
 }
 
 function showRaceScreen() {
   $('home').hidden = true;
   $('home').inert = false;
+  $('tournament').hidden = true;
+  $('tournament').inert = false;
   $('race-screen').hidden = false;
+  $('back-home-label').textContent = activeTournament ? 'Tournoi' : 'Accueil';
   $('race').focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
 
 function returnHome() {
-  const previousTrack = activeTournament?.previousTrack;
+  const fromTournament = Boolean(activeTournament);
   activeTournament = null;
-  if (!previousTrack) reset();
+  if (fromTournament) selectTrack();
+  else reset();
   $('home').inert = false;
+  $('tournament').inert = false;
   $('race-screen').hidden = true;
+  if (fromTournament) {
+    openTournamentPage();
+    return;
+  }
   $('home').hidden = false;
-  if (previousTrack) chooseCategory(previousTrack.startsWith('short_') ? 'sprint' : 'pro', previousTrack, false);
-  else refreshHome();
+  refreshHome();
   $('home-road').focus({ preventScroll: true });
   window.scrollTo(0, 0);
+}
+
+let finishModeSlide;
+
+function showModePage(id, slide) {
+  finishModeSlide?.();
+  const incoming = $(id);
+  const outgoing = $(id === 'tournament' ? 'home' : 'tournament');
+  const animate = slide && !outgoing.hidden && !homeMotion.matches;
+  incoming.hidden = false;
+  if (!animate) {
+    outgoing.hidden = true;
+    return;
+  }
+  const direction = id === 'tournament' ? -100 : 100;
+  outgoing.inert = true;
+  outgoing.classList.add('mode-leaving');
+  const options = { duration: 320, easing: 'ease-in-out' };
+  const leave = outgoing.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(' + -direction + '%)' }], options);
+  const enter = incoming.animate([{ transform: 'translateX(' + direction + '%)' }, { transform: 'translateX(0)' }], options);
+  finishModeSlide = () => {
+    finishModeSlide = undefined;
+    outgoing.hidden = true;
+    outgoing.inert = false;
+    outgoing.classList.remove('mode-leaving');
+    leave.cancel();
+    enter.cancel();
+  };
+  leave.onfinish = finishModeSlide;
+}
+
+function openTournamentPage(slide = false) {
+  const road = $('tournament-road-scroll');
+  if (displayedTournament && !$('tournament').hidden) tournamentScroll.set(displayedTournament.category, road.scrollTop);
+  const today = dailyTournament();
+  if (displayedTournament?.day !== today.day) tournamentScroll.clear();
+  if (tournamentMode === 'pro' && !tournamentProUnlocked()) tournamentMode = 'sprint';
+  displayedTournament = tournamentMode === 'sprint' ? today : dailyTournament(new Date(), 'pro');
+  showTournament(displayedTournament);
+  showModePage('tournament', slide);
+  paintTournamentRoad();
+  if (tournamentScroll.has(tournamentMode)) road.scrollTop = tournamentScroll.get(tournamentMode);
+  else centerTournamentRow($('tournament-self'));
+  updateTournamentSelection();
+  window.scrollTo(0, 0);
+  $('tournament-title').focus({ preventScroll: true });
+}
+
+function paintTournamentRoad(dt = 0) {
+  if ($('tournament').hidden || !displayedTournament) return;
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const remaining = Math.ceil((midnight - now) / 1000);
+  const timer = [Math.floor(remaining / 3600), Math.floor(remaining / 60) % 60, remaining % 60]
+    .map((part) => String(part).padStart(2, '0')).join(':');
+  if (timer !== lastTournamentClock) {
+    $('tournament-clock').textContent = timer;
+    lastTournamentClock = timer;
+  }
+  if (!activeTournament && midnight.getTime() !== displayedTournament.endsAt) {
+    openTournamentPage();
+    return;
+  }
+  paintHomeRoad(dt, $('tournament-road'), displayedTournament.track, $('tournament-road-scroll').scrollTop);
 }
 
 function initializeHome() {
@@ -354,16 +629,50 @@ function initializeHome() {
     enterRace();
   });
   $('garage-open').addEventListener('click', openGarage);
-  $('tournament-open').addEventListener('click', () => {
-    showTournament(dailyTournament());
-    $('tournament').showModal();
+  $('tournament-open').addEventListener('click', () => openTournamentPage(true));
+  $('solo-open').addEventListener('click', () => {
+    tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
+    showModePage('home', true);
+    refreshHome();
+    window.scrollTo(0, 0);
+    $('tournament-open').focus({ preventScroll: true });
   });
   $('tournament-enter').addEventListener('click', () => {
-    const tournament = dailyTournament();
-    activeTournament = { ...tournament, previousTrack: course.id };
-    $('tournament').close();
-    chooseCategory('sprint', tournament.track.id, false);
-    enterRace();
+    const entry = selectedTournamentRow?.entry;
+    startTournament(entry?.points ? entry : tournamentOpponents(displayedTournament.track)[0]);
+  });
+  $('tournament-road-scroll').addEventListener('scroll', updateTournamentSelection, { passive: true });
+  $('tournament-road-scroll').addEventListener('keydown', (event) => {
+    if (!['ArrowUp', 'ArrowDown'].includes(event.key) || !selectedTournamentRow) return;
+    event.preventDefault();
+    const index = tournamentRows.indexOf(selectedTournamentRow) + (event.key === 'ArrowUp' ? -1 : 1);
+    const next = tournamentRows[index];
+    if (next) {
+      if (event.target !== $('tournament-road-scroll')) next.button.focus({ preventScroll: true });
+      centerTournamentRow(next.element);
+    }
+  });
+  window.addEventListener('resize', updateTournamentSelection);
+  $('tournament-sprint-tab').addEventListener('click', () => {
+    if (tournamentMode === 'sprint') return;
+    tournamentMode = 'sprint';
+    openTournamentPage();
+    $('tournament-sprint-tab').focus();
+  });
+  $('tournament-pro-tab').addEventListener('click', () => {
+    if (!tournamentProUnlocked()) {
+      const lock = $('tournament-pro-lock');
+      lock.textContent = 'Pour ouvrir le Pro, réalise ' + tournamentScore(dailyTournament().pro / 100) + ' ou mieux dans le Sprint du jour.';
+      lock.hidden = false;
+      return;
+    }
+    if (tournamentMode === 'pro') return;
+    tournamentMode = 'pro';
+    openTournamentPage();
+    $('tournament-pro-tab').focus();
+  });
+  $('tournament-locate').addEventListener('click', () => {
+    centerTournamentRow($('tournament-self'), homeMotion.matches ? 'instant' : 'smooth');
   });
   $('gift-open').addEventListener('click', () => {
     refreshGift();
@@ -379,7 +688,7 @@ function initializeHome() {
   });
   $('home-road').addEventListener('click', enterRace);
   window.addEventListener('keydown', (event) => {
-    if ($('home').hidden || $('garage').open || $('gifts').open || $('tournament').open || event.repeat ||
+    if (!$('tournament').hidden || $('home').hidden || $('garage').open || $('gifts').open || event.repeat ||
         event.ctrlKey || event.metaKey || event.altKey ||
         !['Space', 'Enter'].includes(event.code) || event.target.closest?.('button, select, a, input')) return;
     event.preventDefault();
@@ -388,4 +697,5 @@ function initializeHome() {
   });
   $('back-home').addEventListener('click', returnHome);
   for (const id of ['track', 'garage-open', 'gift-open', 'home-sound', 'tournament-open']) $(id).disabled = false;
+  openTournamentPage();
 }

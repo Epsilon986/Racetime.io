@@ -381,13 +381,16 @@ function readGhost() {
 
 function updateHud() {
   $('lap').textContent = Math.min(totalLaps, player.lap) + ' / ' + totalLaps;
-  $('time').textContent = clock(elapsed);
-  $('ghost').textContent = ghost?.reference ? 'Référence' : ghost ? 'Actif' : 'À créer';
-  $('best').textContent = personalGhost ? clock(personalGhost.time) : '–';
+  $('time').textContent = activeTournament ? tournamentScore(elapsed) : clock(elapsed);
+  $('ghost').textContent = ghost?.name ?? (ghost?.reference ? 'Référence' : ghost ? 'Actif' : 'À créer');
+  const dailyBest = activeTournament && tournamentBest(activeTournament);
+  $('best-label').textContent = activeTournament ? 'RECORD DU JOUR' : 'RECORD LOCAL';
+  $('best').textContent = dailyBest ? tournamentScore(dailyBest.time / 100) :
+    personalGhost ? clock(personalGhost.time) : '–';
 }
 
-function selectTrack() {
-  course = tracks.find(({ id }) => id === $('track').value) || tracks[0];
+function selectTrack(trackId = $('track').value) {
+  course = tracks.find(({ id }) => id === trackId) || tracks[0];
   course.paths ??= racePhysics.build(course.lanes);
   scene = buildScene();
   reset();
@@ -407,12 +410,12 @@ function reset() {
   $('car').disabled = false;
   $('notice').hidden = true;
   setupPlayer();
-  personalGhost = readGhost();
+  personalGhost = activeTournament ? null : readGhost();
   const reference = referenceGhost(course);
   const referenceCar = reference && cars.find(({ id }) => id === reference.car);
-  ghost = referenceCar && $('reference-ghost').checked
+  ghost = activeTournament?.opponent ?? (referenceCar && $('reference-ghost').checked
     ? { ...reference, car: referenceCar, reference: true }
-    : personalGhost;
+    : personalGhost);
   updateHud();
 }
 
@@ -478,15 +481,23 @@ function finish() {
   const opponent = ghost;
   const margin = opponent ? Math.round((elapsed - opponent.time) * 100) : 0;
   retryResult = Boolean(opponent && margin > 0);
-  const isSprint = course.id.startsWith('short_');
+  const isSprint = !activeTournament && course.id.startsWith('short_');
   const alreadyQualified = isSprint && hasQualifiedForPro(course);
-  if (personalGhost) recordLocalResult(course, personalGhost.car, personalGhost.time);
-  recordLocalResult(course, player.car, elapsed);
+  const unlocksTournamentPro = activeTournament?.category === 'sprint' &&
+    (tournamentBest(activeTournament)?.time ?? Infinity) > activeTournament.pro &&
+    Math.round(elapsed * 100) <= activeTournament.pro;
+  if (!activeTournament) {
+    if (personalGhost) recordLocalResult(course, personalGhost.car, personalGhost.time);
+    recordLocalResult(course, player.car, elapsed);
+  }
   recordTournamentResult(elapsed);
   const unlock = $('pro-track-unlocked');
-  unlock.hidden = !isSprint || alreadyQualified || !hasQualifiedForPro(course);
-  if (!unlock.hidden) unlock.textContent = 'Circuit Pro débloqué · ' + course.name;
-  const record = !personalGhost || elapsed < personalGhost.time;
+  const unlocksSoloPro = isSprint && !alreadyQualified && hasQualifiedForPro(course);
+  unlock.hidden = !unlocksTournamentPro && !unlocksSoloPro;
+  if (!unlock.hidden) unlock.textContent = unlocksTournamentPro
+    ? 'Pro débloqué dans le tournoi du jour'
+    : 'Circuit Pro débloqué · ' + course.name;
+  const record = !activeTournament && (!personalGhost || elapsed < personalGhost.time);
   if (record) {
     save('ghost-v2/' + course.id, JSON.stringify({ time: elapsed, car: player.car.id, points: replay }));
     personalGhost = { time: elapsed, car: player.car, points: replay };
@@ -496,7 +507,7 @@ function finish() {
   $('car').disabled = false;
   play('finish_race');
   if (opponent) {
-    $('result-ghost-label').textContent = opponent.reference ? 'Référence' : 'Fantôme';
+    $('result-ghost-label').textContent = opponent.name ?? (opponent.reference ? 'Référence' : 'Fantôme');
     if (!retryResult) play('win_crowd_cheer', 0.6);
     else if (margin < 25) play('lose_crowd_ooh', 0.6);
     play(retryResult ? 'music_lose' : 'music_win', 0.4);
@@ -504,11 +515,12 @@ function finish() {
   $('result-title').textContent = opponent
     ? (margin < 0 ? 'Victoire !' : margin > 0 ? 'Défaite' : 'Égalité')
     : 'Course terminée';
-  $('result-time').textContent = clock(elapsed);
+  const formatScore = activeTournament ? tournamentScore : clock;
+  $('result-time').textContent = formatScore(elapsed);
   paintResultCar('result-car', player.car);
   $('result-opponent').hidden = !opponent;
   if (opponent) {
-    $('result-ghost-time').textContent = clock(opponent.time);
+    $('result-ghost-time').textContent = formatScore(opponent.time);
     paintResultCar('result-ghost-car', opponent.car);
   }
   $('result-action').textContent = retryResult ? 'Rejouer' : 'Continuer';
@@ -592,9 +604,10 @@ function drawGhost(playerPose) {
     ctx.font = 'bold 14px system-ui';
     ctx.lineWidth = 3;
     ctx.strokeStyle = '#111822';
-    ctx.strokeText('FANTÔME', x, y - 35);
+    const label = ghost.name ?? 'FANTÔME';
+    ctx.strokeText(label, x, y - 35);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText('FANTÔME', x, y - 35);
+    ctx.fillText(label, x, y - 35);
     ctx.restore();
   }
 }
@@ -669,6 +682,7 @@ function frame(now) {
   } else if (!$('home').hidden) {
     paintHomeRoad(dt);
   }
+  if (!$('tournament').hidden) paintTournamentRoad(dt);
   requestAnimationFrame(frame);
 }
 
