@@ -529,6 +529,7 @@ function returnHome() {
   $('home').inert = false;
   $('tournament').inert = false;
   $('race-screen').hidden = true;
+  syncMenuAudio();
   if (fromTournament) {
     openTournamentPage();
     return;
@@ -618,6 +619,7 @@ function initializeHome() {
       const paired = button.dataset.category === 'pro' ? current.replace(/^short_track_0?/, 'track_') :
         current.replace(/^track_(\d+)$/, (_, number) => 'short_track_' + number.padStart(2, '0'));
       chooseCategory(button.dataset.category, paired);
+      play('switch_to_' + button.dataset.category + '_track', 0.65);
     });
   }
   $('track').addEventListener('change', chooseTrack);
@@ -657,6 +659,7 @@ function initializeHome() {
     if (tournamentMode === 'sprint') return;
     tournamentMode = 'sprint';
     openTournamentPage();
+    play('switch_to_sprint_track', 0.65);
     $('tournament-sprint-tab').focus();
   });
   $('tournament-pro-tab').addEventListener('click', () => {
@@ -669,6 +672,7 @@ function initializeHome() {
     if (tournamentMode === 'pro') return;
     tournamentMode = 'pro';
     openTournamentPage();
+    play('switch_to_pro_track', 0.65);
     $('tournament-pro-tab').focus();
   });
   $('tournament-locate').addEventListener('click', () => {

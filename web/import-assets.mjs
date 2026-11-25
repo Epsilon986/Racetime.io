@@ -81,6 +81,7 @@ const particles = Object.fromEntries([...particleNames]
   .map((name) => [name, read('particles/' + name)]));
 const sounds = new Set([
   'vs_whoosh', 'vs_impact', 'vs_whoosh_out',
+  'music_menu', 'switch_to_pro_track', 'switch_to_sprint_track', 'announcer_racetime',
   'win_crowd_cheer', 'lose_crowd_ooh', 'music_win', 'music_lose',
   'start_beep_1', 'start_beep_2', 'start_beep_3', '2nd_lap', 'finish_race', 'car_grind',
   ...tracks.map(({ ambience }) => ambience),
