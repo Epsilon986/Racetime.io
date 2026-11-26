@@ -39,7 +39,8 @@ Sources Android : [garage et roue](race-time-1-0-6/sources/com/peoplefun/racetim
 - [ ] **P2 · Fidélité des animations de course.** Comparer sur téléphone la synchronisation des panneaux, de la voix et des feux, puis vérifier le maintien de la caméra et le timing des cartes après la ligne.
 - [x] **P2 · Accueil après un résultat.** Après un premier chrono ou un nouveau record du jour, la route se recentre sur la voiture du joueur à sa nouvelle position.
 - [x] **P2 · Remontée au classement.** La file reste au milieu et le joueur emprunte une voie latérale avant de se réinsérer. Tous les dépassements sont montrés, y compris ceux de pilotes hors top 100, affichés le temps de l’animation. La durée s’adapte au nombre de places gagnées. En mouvement réduit, le recentrage est immédiat.
-- [x] **P2 · Top 100 et position hors classement affiché.** La route affiche les 100 premiers. Le joueur hors top 100 reste visible à la fin avec son rang réel. Un plateau de 120 pilotes IA par tracé permet de tester ce cas avant l’arrivée des classements partagés.
+- [x] **P2 · Top 100 et position hors classement affiché.** La route affiche les 100 premiers. Le joueur hors top 100 reste visible à la fin avec son rang réel. Un plateau de 120 adversaires simulés par tracé permet de tester ce cas avant l’arrivée des classements partagés.
+- [x] **P2 · Podium sur la route.** Les trois premiers véhicules portent une médaille or, argent ou bronze. Deux fantômes d’allure peuplent la division Master et peuvent être affrontés.
 
 Sources Android : [accueil](race-time-1-0-6/sources/com/peoplefun/racetime/vc.java), [route](race-time-1-0-6/sources/com/peoplefun/racetime/uh.java), [intro de duel](race-time-1-0-6/sources/com/peoplefun/racetime/ajv.java), [course et arrivée](race-time-1-0-6/sources/com/peoplefun/racetime/aar.java), [tutoriel](race-time-1-0-6/sources/com/peoplefun/racetime/aaq.java). Côté web : [écrans](web/index.html), [rendu de course](web/game.js).
 
