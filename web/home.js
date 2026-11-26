@@ -60,6 +60,7 @@ function tournamentPromotions(progress, tournament) {
 
 function showTournamentGain(gained, rank, final = false) {
   const overlay = $('tournament-gain-overlay');
+  overlay.classList.toggle('is-final', final);
   const value = '+' + gained;
   const counter = $('tournament-gain-count');
   if (counter.textContent !== value) {
@@ -68,7 +69,7 @@ function showTournamentGain(gained, rank, final = false) {
     counter.animate([{ transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 140, easing: 'ease-out' });
   }
   $('tournament-gain-label').textContent = gained === 1 ? 'Place gagnée' : 'Places gagnées';
-  $('tournament-gain-rank').textContent = final ? rank + (rank === 1 ? 're place' : 'e place') : '#' + rank;
+  $('tournament-gain-rank').textContent = final ? rank + (rank === 1 ? 'ʳᵉ' : 'ᵉ') : '#' + rank;
   overlay.hidden = false;
 }
 
@@ -166,7 +167,7 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
       if (self.entry.rank <= 3) $('tournament-self').classList.add('tournament-podium-arrival');
       showTournamentGain(count, self.entry.rank, true);
       play('tournament_results', 0.5);
-      tournamentGainTimer = setTimeout(() => { $('tournament-gain-overlay').hidden = true; }, 1100);
+      tournamentGainTimer = setTimeout(() => { $('tournament-gain-overlay').hidden = true; }, 2100);
     } else {
       for (const name of overtakeSounds) recordings[name]?.pause();
       clearTournamentCelebration();
@@ -386,7 +387,7 @@ function showTournamentRacers(tournament, best, progress = null) {
       row.className = 'tournament-marker';
       row.dataset.division = entry.name.toLowerCase();
       const badge = document.createElement('span');
-      badge.className = 'tournament-division-badge';
+      badge.className = 'visually-hidden';
       badge.textContent = entry.name;
       const time = document.createElement('strong');
       time.textContent = tournamentScore(entry.time);
@@ -407,17 +408,14 @@ function showTournamentRacers(tournament, best, progress = null) {
     caption.className = 'tournament-racer-caption';
     const label = document.createElement('span');
     const rankedName = entry.rank === null ? entry.name : '#' + entry.rank + ' ' + entry.name;
-    label.textContent = row.dataset.podium ? entry.name : rankedName;
-    caption.append(label);
-    if (row.dataset.podium) {
-      const medal = document.createElement('span');
-      medal.className = 'tournament-podium-medal';
-      medal.setAttribute('aria-hidden', 'true');
-      const number = document.createElement('span');
-      number.textContent = entry.rank;
-      medal.append(number);
-      card.append(medal);
+    label.textContent = entry.name;
+    if (!row.dataset.podium) {
+      const rank = document.createElement('span');
+      rank.className = 'tournament-racer-rank';
+      rank.textContent = entry.rank === null ? '—' : '#' + entry.rank;
+      caption.append(rank);
     }
+    caption.append(label);
     if (entry.time !== null) {
       const time = document.createElement('strong');
       time.textContent = tournamentScore(entry.time);
