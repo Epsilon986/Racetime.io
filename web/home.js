@@ -10,6 +10,7 @@ const tournamentScore = (seconds) => seconds.toFixed(2).replace('.', ',') + ' s'
 let tournamentRows = [];
 let selectedTournamentRow = null;
 let tournamentVehicleScale = 0;
+let tournamentVehicleLayoutSize = '';
 let finishTournamentOvertake;
 let tournamentDemo = false;
 let tournamentRoadWiden = 1;
@@ -59,6 +60,7 @@ function tournamentPromotions(progress, tournament) {
 
 function showTournamentGain(gained, rank, final = false) {
   const overlay = $('tournament-gain-overlay');
+  overlay.classList.toggle('is-final', final);
   const value = '+' + gained;
   const counter = $('tournament-gain-count');
   if (counter.textContent !== value) {
@@ -67,7 +69,7 @@ function showTournamentGain(gained, rank, final = false) {
     counter.animate([{ transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 140, easing: 'ease-out' });
   }
   $('tournament-gain-label').textContent = gained === 1 ? 'Place gagnée' : 'Places gagnées';
-  $('tournament-gain-rank').textContent = final ? rank + (rank === 1 ? 're place' : 'e place') : '#' + rank;
+  $('tournament-gain-rank').textContent = final ? rank + (rank === 1 ? 'ʳᵉ' : 'ᵉ') : '#' + rank;
   overlay.hidden = false;
 }
 
@@ -165,7 +167,7 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
       if (self.entry.rank <= 3) $('tournament-self').classList.add('tournament-podium-arrival');
       showTournamentGain(count, self.entry.rank, true);
       play('tournament_results', 0.5);
-      tournamentGainTimer = setTimeout(() => { $('tournament-gain-overlay').hidden = true; }, 1100);
+      tournamentGainTimer = setTimeout(() => { $('tournament-gain-overlay').hidden = true; }, 2100);
     } else {
       for (const name of overtakeSounds) recordings[name]?.pause();
       clearTournamentCelebration();
@@ -385,7 +387,7 @@ function showTournamentRacers(tournament, best, progress = null) {
       row.className = 'tournament-marker';
       row.dataset.division = entry.name.toLowerCase();
       const badge = document.createElement('span');
-      badge.className = 'tournament-division-badge';
+      badge.className = 'visually-hidden';
       badge.textContent = entry.name;
       const time = document.createElement('strong');
       time.textContent = tournamentScore(entry.time);
@@ -406,22 +408,14 @@ function showTournamentRacers(tournament, best, progress = null) {
     caption.className = 'tournament-racer-caption';
     const label = document.createElement('span');
     const rankedName = entry.rank === null ? entry.name : '#' + entry.rank + ' ' + entry.name;
-    label.textContent = row.dataset.podium ? entry.name : rankedName;
-    caption.append(label);
-    if (row.dataset.podium) {
-      const medal = document.createElement('span');
-      medal.className = 'tournament-podium-medal';
-      medal.setAttribute('aria-hidden', 'true');
-      medal.textContent = entry.rank;
-      row.append(medal);
-      if (entry.rank === 3) {
-        const line = document.createElement('span');
-        line.className = 'tournament-podium-entry';
-        line.setAttribute('aria-hidden', 'true');
-        line.textContent = 'Podium';
-        row.append(line);
-      }
+    label.textContent = entry.name;
+    if (!row.dataset.podium) {
+      const rank = document.createElement('span');
+      rank.className = 'tournament-racer-rank';
+      rank.textContent = entry.rank === null ? '—' : '#' + entry.rank;
+      caption.append(rank);
     }
+    caption.append(label);
     if (entry.time !== null) {
       const time = document.createElement('strong');
       time.textContent = tournamentScore(entry.time);
@@ -610,20 +604,34 @@ function tournamentVehicleBounds(car) {
   return { radius, width: width + radius * Math.sin(2 * Math.PI / 180) };
 }
 
-function paintTournamentVehicles(scale) {
-  if (scale === tournamentVehicleScale) return;
+function paintTournamentVehicles(scale, width, height) {
+  const layoutSize = width + 'x' + height;
+  if (scale === tournamentVehicleScale && layoutSize === tournamentVehicleLayoutSize) return;
   tournamentVehicleScale = scale;
+  tournamentVehicleLayoutSize = layoutSize;
   $('tournament').style.setProperty('--tournament-lane-width', 90 * scale + 'px');
   for (const { icon, button, entry } of tournamentRows) {
     const { radius, width } = tournamentVehicleBounds(entry.car);
     const extent = radius * scale;
     button.style.setProperty('--tournament-car-clearance', width * scale + 6 + 'px');
-    button.style.minHeight = Math.max(160, Math.ceil(extent * 2 + 24)) + 'px';
+    const podium = entry.rank !== null && entry.rank <= 3;
+    if (!podium) button.style.minHeight = Math.max(160, Math.ceil(extent * 2 + 24)) + 'px';
     const dc = icon.getContext('2d');
     dc.resetTransform();
     dc.clearRect(0, 0, icon.width, icon.height);
     dc.translate(icon.width / 2, icon.height / 2);
-    const drawingScale = scale * icon.width / icon.clientWidth;
+    let vehicleScale = scale;
+    if (podium) {
+      const winner = entry.rank === 1;
+      const diameter = Math.min(
+        winner ? 164 : 108,
+        button.clientWidth * (winner ? .66 : .36),
+        button.clientHeight * (winner ? .57 : 1)
+      );
+      vehicleScale = Math.min(scale * 1.65, diameter / (2 * radius));
+      icon.style.setProperty('--tournament-overtake-car-scale', Math.min(1, scale / vehicleScale));
+    }
+    const drawingScale = vehicleScale * icon.width / icon.clientWidth;
     dc.scale(drawingScale, drawingScale);
     drawVehicle(dc, entry.car, { x: 0, y: 0, angle: 0 }, { powered: true });
   }
@@ -686,7 +694,7 @@ function paintHomeRoad(dt, board = $('home-road'), roadCourse = course, tourname
   }
 
   if (tournament) {
-    paintTournamentVehicles(scale);
+    paintTournamentVehicles(scale, width, height);
     return;
   }
   const carX = center + Math.sin(roadTravel / 270) * 12 * scale;
