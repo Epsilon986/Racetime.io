@@ -1,4 +1,4 @@
-﻿.home {
+.home {
   position: relative;
   width: 100%;
   min-height: 100svh;
@@ -344,61 +344,147 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
   --podium-panel-base: #d69367;
   --podium-panel-ink: #3c2017;
 }
-.tournament-podium-entry {
+.tournament-podium .tournament-racer {
+  --podium-shape: polygon(8% 0, 92% 0, 100% 13%, 100% 81%, 92% 100%, 7% 100%, 0 84%, 0 17%);
+  isolation: isolate;
+  display: block;
+  width: min(100%, var(--tournament-pavement-width));
+  min-height: clamp(88px, 11vh, 112px);
+  margin-inline: auto;
+  filter: drop-shadow(0 3px 5px color-mix(in srgb, var(--podium-color) 70%, transparent));
+}
+.tournament-podium .tournament-racer::before,
+.tournament-podium .tournament-racer::after {
+  content: '';
   position: absolute;
-  bottom: -20px;
-  left: 50%;
-  width: min(100%, var(--tournament-pavement-width, 180px));
-  height: 13px;
-  transform: translateX(-50%);
-  display: grid;
-  place-items: center;
-  background: conic-gradient(#162639 0 25%, #f9f1d8 0 50%, #162639 0 75%, #f9f1d8 0) 0 0 / 12px 12px;
-  color: #fff2b2;
-  font-size: .68rem;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .18em;
-  text-shadow: 0 2px 2px #061522, 0 0 5px #061522;
+  clip-path: var(--podium-shape);
   pointer-events: none;
 }
-.tournament-podium canvas { z-index: 1; }
+.tournament-podium .tournament-racer::before {
+  inset: 0;
+  background: linear-gradient(146deg, white, var(--podium-color) 22%, var(--podium-dark) 52%, var(--podium-color) 88%, white);
+}
+.tournament-podium .tournament-racer::after {
+  inset: 2px;
+  background:
+    linear-gradient(146deg, #ffffff25 17%, transparent 34% 69%, #ffffff24 70% 79%, transparent 80%),
+    radial-gradient(ellipse at 50% 0, color-mix(in srgb, var(--podium-dark) 57%, #142030), #11191f 82%);
+}
+.tournament-podium .tournament-racer canvas {
+  z-index: 1;
+  left: calc(35% - 140px);
+}
+.tournament-overtaking .tournament-podium .tournament-racer canvas {
+  scale: var(--tournament-overtake-car-scale, 1);
+}
 .tournament-podium .tournament-racer-caption {
   z-index: 2;
+  left: 51%;
+  right: 7%;
+  gap: 5px;
+  padding: 0 0 0 8%;
+  border-left: 1px solid var(--podium-color);
+  border-radius: 0;
+  clip-path: none;
+  background: none;
+  color: white;
+  text-align: center;
 }
-.tournament-overtake-player .tournament-racer-caption { visibility: hidden; }
+.tournament-podium .tournament-racer-caption strong {
+  padding: 3px 5px;
+  background: linear-gradient(145deg, var(--podium-panel-light), var(--podium-panel-base));
+  clip-path: polygon(10% 0, 100% 0, 95% 75%, 88% 100%, 0 100%, 3% 25%);
+}
 .tournament-podium-medal {
   position: absolute;
-  top: 50%;
-  right: calc(50% + clamp(46px, 6vw, 66px));
   z-index: 2;
-  display: grid;
-  place-items: center;
-  width: clamp(36px, 5.5vw, 58px);
-  height: clamp(48px, 7vw, 74px);
-  padding-bottom: 9px;
-  clip-path: polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%);
-  background: linear-gradient(155deg, #fff7de, var(--podium-color) 40%, var(--podium-dark) 130%);
-  color: #142238;
-  font-size: clamp(1.45rem, 3.4vw, 2.5rem);
+  inset: 2px auto auto 2px;
+  width: 24%;
+  height: 84%;
+  clip-path: polygon(26% 0, 100% 0, 81% 18%, 75% 58%, 0 100%, 0 18%);
+  background: linear-gradient(145deg, var(--podium-panel-light), var(--podium-panel-base) 52%, var(--podium-dark));
+  color: var(--podium-panel-ink);
+  font-size: clamp(1.45rem, 2.6vw, 2.1rem);
   font-weight: 950;
-  font-style: italic;
-  transform: translateY(-50%);
+  line-height: 1;
   pointer-events: none;
 }
+.tournament-podium-medal > span {
+  position: absolute;
+  top: 39%;
+  left: 39%;
+  transform: translate(-50%, -50%);
+}
+.tournament-podium[data-podium="1"] .tournament-racer {
+  --podium-shape: polygon(50% 0, 100% 20%, 100% 87%, 84% 94%, 78% 92%, 65% 97%, 62% 96%, 50% 100%, 38% 96%, 35% 97%, 22% 92%, 16% 94%, 0 87%, 0 20%);
+  width: min(82%, calc(var(--tournament-pavement-width) * .82));
+  min-height: clamp(204px, 72cqh, 350px);
+  filter: drop-shadow(0 0 5px #ffc43b) drop-shadow(0 0 12px #ffc43b80);
+}
+.tournament-podium[data-podium="1"] .tournament-racer::after {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 55'%3E%3Cdefs%3E%3Cg id='laurel' fill='%23e9b33d'%3E%3Cpath d='M27 51Q2 39 18 8' fill='none' stroke='%23bd882b' stroke-width='1.5'/%3E%3Cpath d='M24 48Q12 51 9 41Q20 41 24 48ZM17 42Q5 42 4 32Q14 34 17 42ZM13 34Q3 32 4 22Q12 25 13 34ZM13 25Q5 20 9 13Q15 17 13 25ZM16 17Q11 11 17 5Q21 11 16 17ZM17 16Q17 7 25 4Q25 12 17 16ZM14 31Q14 22 22 20Q22 28 14 31ZM18 40Q15 31 23 28Q27 35 18 40ZM23 46Q20 37 27 34Q31 41 23 46Z'/%3E%3C/g%3E%3C/defs%3E%3Cuse href='%23laurel'/%3E%3Cuse href='%23laurel' transform='translate(140) scale(-1 1)'/%3E%3C/svg%3E") center 51% / 85% auto no-repeat,
+    linear-gradient(90deg, transparent 7%, #ffdc6590 7.5%, transparent 8% 92%, #ffdc6590 92.5%, transparent 93%),
+    linear-gradient(145deg, #ffffff26 34%, transparent 35% 55%, #ffffff16 56% 63%, transparent 64%),
+    radial-gradient(ellipse at 50% 4%, #92722d, #302718 50%, #171b21 78%, #58431e);
+}
+.tournament-podium[data-podium="1"] canvas { top: calc(50% - 140px); left: calc(50% - 140px); }
+.tournament-podium[data-podium="1"] .tournament-racer-caption {
+  top: auto;
+  bottom: 8%;
+  left: 14%;
+  right: 14%;
+  transform: none;
+  padding: 0;
+  border: 0;
+  font-size: clamp(.95rem, 2vw, 1.3rem);
+}
+.tournament-podium[data-podium="1"] .tournament-racer-caption strong {
+  justify-self: center;
+  min-width: 70%;
+  padding-inline: 12px;
+}
 .tournament-podium[data-podium="1"] .tournament-podium-medal {
-  width: clamp(42px, 6.5vw, 68px);
-  height: clamp(56px, 8vw, 86px);
-  padding-top: 9px;
+  inset: 1px auto auto 50%;
+  width: 45%;
+  height: 33%;
+  transform: translateX(-50%);
+  clip-path: polygon(50% 0, 100% 28%, 100% 75%, 50% 100%, 0 75%, 0 28%);
+  font-size: clamp(1.8rem, min(5vw, 9cqh), 3.5rem);
+  font-style: italic;
+  line-height: 1;
+}
+.tournament-podium[data-podium="1"] .tournament-podium-medal > span {
+  top: 60%;
+  left: 50%;
 }
 .tournament-podium[data-podium="1"] .tournament-podium-medal::before {
   content: '';
   position: absolute;
-  top: 5px;
-  width: 40%;
-  height: 13%;
-  background: #64400d;
-  clip-path: polygon(0 15%, 27% 54%, 50% 0, 73% 54%, 100% 15%, 85% 100%, 15% 100%);
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 25%;
+  background:
+    radial-gradient(circle at 50% 59%, #fff9ca 0 7%, #e5aa36 8% 13%, transparent 14%),
+    radial-gradient(circle at 30% 65%, #ffdf77 0 5%, transparent 6%),
+    radial-gradient(circle at 70% 65%, #ffdf77 0 5%, transparent 6%),
+    linear-gradient(180deg, #332208 0 76%, #fff2a2 77% 83%, #684012 84%);
+  clip-path: polygon(0 24%, 5% 10%, 14% 12%, 19% 27%, 33% 44%, 45% 19%, 39% 12%, 44% 0, 56% 0, 61% 12%, 55% 19%, 67% 44%, 81% 27%, 86% 12%, 95% 10%, 100% 24%, 91% 33%, 82% 75%, 82% 100%, 18% 100%, 18% 75%, 9% 33%);
+}
+.tournament-podium .tournament-racer:focus-visible {
+  outline: none;
+  filter: drop-shadow(0 0 6px white) drop-shadow(0 0 8px var(--podium-color));
+}
+.tournament-overtake-player .tournament-racer-caption,
+.tournament-overtake-player .tournament-podium-medal,
+.tournament-overtake-player .tournament-racer::before,
+.tournament-overtake-player .tournament-racer::after { visibility: hidden; }
+.tournament-overtake-player.tournament-podium .tournament-racer { filter: none; }
+.tournament-overtake-player.tournament-podium .tournament-racer canvas {
+  top: calc(50% - 140px);
+  left: calc(50% - 140px);
 }
 .tournament-podium-arrival .tournament-podium-medal {
   animation: podium-medal-light 820ms ease-out;
