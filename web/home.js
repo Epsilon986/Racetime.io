@@ -10,6 +10,116 @@ const tournamentScore = (seconds) => seconds.toFixed(2).replace('.', ',') + ' s'
 let tournamentRows = [];
 let selectedTournamentRow = null;
 let tournamentVehicleScale = 0;
+let finishTournamentOvertake;
+let tournamentDemo = false;
+let tournamentRoadWiden = 1;
+let tournamentRoadPan = 0;
+
+function tournamentPasses(rows, progress) {
+  return rows.filter(({ entry }) => {
+    if (!entry.ai) return false;
+    const time = Math.round(entry.time * 100);
+    return progress.time < time && (progress.previous === null || progress.previous >= time);
+  });
+}
+
+function tournamentLaneProgress(position, lane) {
+  const entering = (lane.start - position) / Math.max(1, lane.start - lane.first);
+  const merging = (position - lane.end) / Math.max(1, lane.last - lane.end);
+  const progress = Math.max(0, Math.min(1, entering, merging));
+  return progress ** 3 * (10 - 15 * progress + 6 * progress ** 2);
+}
+
+function tournamentTravelProgress(time) {
+  const ramp = 0.12;
+  if (time < ramp) return time ** 2 / (2 * ramp * (1 - ramp));
+  if (time > 1 - ramp) return 1 - (1 - time) ** 2 / (2 * ramp * (1 - ramp));
+  return (time - ramp / 2) / (1 - ramp);
+}
+
+function animateTournamentOvertake(progress, best = tournamentBest(displayedTournament)) {
+  const count = tournamentPasses(tournamentOpponents(displayedTournament.track).map((entry) => ({ entry })), progress).length;
+  if (!count) return;
+  const label = $('tournament-overtake');
+  label.textContent = tournamentDemo ? 'Aperçu · 121e → 5e' :
+    count === 1 ? '1 pilote dépassé' : count + ' pilotes dépassés';
+  label.hidden = false;
+  if (homeMotion.matches) return;
+
+  const road = $('tournament-road-scroll');
+  showTournamentRacers(displayedTournament, best, progress);
+  paintTournamentRoad();
+  centerTournamentRow($('tournament-self'));
+  updateTournamentSelection();
+  const self = tournamentRows.find(({ entry }) => !entry.ai);
+  const passed = tournamentPasses(tournamentRows, progress);
+  const target = road.scrollTop;
+  const selfCenter = self.element.getBoundingClientRect().top + self.element.offsetHeight / 2;
+  const playerBounds = tournamentVehicleBounds(self.entry.car);
+  const crossings = passed.map(({ element, entry }) => {
+    const bounds = tournamentVehicleBounds(entry.car);
+    const position = target + element.getBoundingClientRect().top + element.offsetHeight / 2 - selfCenter;
+    const clearance = (playerBounds.radius + bounds.radius) * tournamentVehicleScale + 12;
+    return { position, clearance, width: bounds.width };
+  });
+  const first = Math.max(...crossings.map(({ position, clearance }) => position + clearance));
+  const last = Math.min(...crossings.map(({ position, clearance }) => position - clearance));
+  const requestedStart = first + 120;
+  road.classList.add('tournament-overtaking');
+  road.style.setProperty('--overtake-runout', Math.ceil(requestedStart - crossings.at(-1).position) + 'px');
+  const start = Math.min(road.scrollHeight - road.clientHeight, requestedStart);
+  const laneChange = playerBounds.width + Math.max(...crossings.map(({ width }) => width)) + 10;
+  const roadWiden = Math.max(1, (laneChange + playerBounds.width + 8) / 90);
+  const pan = Math.max(0, (laneChange + playerBounds.width) * tournamentVehicleScale + 8 -
+    $('tournament-road').clientWidth / 2);
+  const lane = {
+    start, first, last, end: target,
+  };
+  self.element.classList.add('tournament-overtake-player');
+  let frame;
+  finishTournamentOvertake = () => {
+    cancelAnimationFrame(frame);
+    finishTournamentOvertake = undefined;
+    tournamentRoadWiden = 1;
+    tournamentRoadPan = 0;
+    self.button.style.translate = '';
+    self.icon.style.translate = '';
+    self.button.style.removeProperty('--tournament-player-shift');
+    self.element.classList.remove('tournament-overtake-player');
+    road.classList.remove('tournament-overtaking');
+    road.style.removeProperty('--overtake-runout');
+    road.style.translate = '';
+    showTournamentRacers(displayedTournament, best);
+    paintTournamentRoad();
+    centerTournamentRow($('tournament-self'));
+    updateTournamentSelection();
+  };
+  const duration = Math.max(2700, 1350 + passed.length * 155);
+  let started;
+  function moveTo(position) {
+    road.scrollTop = position;
+    self.button.style.translate = '0 ' + (road.scrollTop - target) + 'px';
+    const rank = self.entry.rank + crossings.filter(({ position }) => road.scrollTop > position).length;
+    $('tournament-selected-rank').textContent = '#' + rank;
+    const laneProgress = tournamentLaneProgress(road.scrollTop, lane);
+    const playerShift = -laneChange * tournamentVehicleScale * laneProgress + 'px';
+    self.icon.style.translate = playerShift + ' 0';
+    self.button.style.setProperty('--tournament-player-shift', playerShift);
+    tournamentRoadWiden = 1 + (roadWiden - 1) * laneProgress;
+    tournamentRoadPan = pan * laneProgress;
+    road.style.translate = tournamentRoadPan + 'px 0';
+  }
+  function advance(now) {
+    started ??= now;
+    const fraction = Math.min(1, (now - started) / duration);
+    const eased = tournamentTravelProgress(fraction);
+    moveTo(target + (start - target) * (1 - eased));
+    if (fraction < 1) frame = requestAnimationFrame(advance);
+    else finishTournamentOvertake();
+  }
+  moveTo(start);
+  frame = requestAnimationFrame(advance);
+}
 
 function centerTournamentRow(row, behavior = 'instant') {
   const road = $('tournament-road-scroll');
@@ -19,6 +129,7 @@ function centerTournamentRow(row, behavior = 'instant') {
 }
 
 function updateTournamentSelection() {
+  if (finishTournamentOvertake) return;
   const road = $('tournament-road-scroll');
   if (!$('tournament').hidden && road.clientHeight && tournamentRows.length) {
     const center = road.getBoundingClientRect().top + road.clientHeight / 2;
@@ -37,6 +148,7 @@ function updateTournamentSelection() {
     nearest.button.setAttribute('aria-pressed', 'true');
     const { entry } = nearest;
     $('tournament-selected-name').textContent = entry.name;
+    $('tournament-selected-rank').textContent = entry.rank === null ? 'Non classé' : '#' + entry.rank;
     $('tournament-selected-car').textContent = entry.car.name;
     $('tournament-selected-time').textContent = entry.time === null ? 'Aucun chrono' : tournamentScore(entry.time);
     const badge = $('tournament-selected-division');
@@ -46,57 +158,95 @@ function updateTournamentSelection() {
       badge.textContent = division;
       badge.dataset.division = division.toLowerCase();
     }
-    $('tournament-enter').textContent = entry.points ? 'Affronter' : 'Participer';
+    $('tournament-enter').textContent = entry.ai ? 'Affronter' : 'Participer';
   }
+}
+
+function tournamentReferenceOpponent(track) {
+  const reference = referenceGhost(track);
+  return { ...reference, name: 'Référence', car: cars.find(({ id }) => id === reference.car) };
+}
+
+function simulateTournamentOpponent(track, driver, capture = false) {
+  track.paths ??= racePhysics.build(track.lanes);
+  const racer = racePhysics.create(track.paths, driver.car);
+  const points = capture ? [racePhysics.pose(racer)] : null;
+  const burst = 75 + driver.ai % 9 * 13;
+  const rest = driver.ai % 14 * 3;
+  const delay = driver.ai * 2;
+  let ticks = 0;
+  while (racer.lap <= totalLaps && ticks < 30000) {
+    const powered = ticks >= delay && (driver.fullThrottle || (ticks - delay) % (burst + rest) < burst);
+    racePhysics.advance(racer, powered);
+    ticks++;
+    if (capture && (ticks % replayInterval === 0 || racer.lap > totalLaps)) points.push(racePhysics.pose(racer));
+  }
+  return racer.lap > totalLaps ? { time: ticks * racePhysics.step, points } : null;
 }
 
 function tournamentOpponents(track) {
   if (tournamentFields.has(track.id)) return tournamentFields.get(track.id);
-  const reference = referenceGhost(track);
-  const opponents = [{ ...reference, name: 'Référence', car: cars.find(({ id }) => id === reference.car) }];
-  track.paths ??= racePhysics.build(track.lanes);
-  for (let index = 0; index < 5; index++) {
-    const car = cars[index];
-    const racer = racePhysics.create(track.paths, car);
-    const points = [racePhysics.pose(racer)];
-    let ticks = 0;
-    while (racer.lap <= totalLaps && ticks < 15000) {
-      racePhysics.advance(racer, ticks % (95 + index * 13) < 95);
-      ticks++;
-      if (ticks % replayInterval === 0 || racer.lap > totalLaps) points.push(racePhysics.pose(racer));
+  const opponents = Array.from({ length: 120 }, (_, index) => {
+    const driver = { ai: index + 1, name: 'Pilote IA ' + (index + 1), car: cars[index % cars.length] };
+    let run = simulateTournamentOpponent(track, driver);
+    if (!run) {
+      driver.fullThrottle = true;
+      run = simulateTournamentOpponent(track, driver);
     }
-    if (racer.lap > totalLaps) opponents.push({
-      name: 'Pilote IA ' + (index + 1), car, time: ticks * racePhysics.step, points,
-    });
-  }
+    return run ? { ...driver, time: run.time } : null;
+  }).filter(Boolean);
   tournamentFields.set(track.id, opponents);
   return opponents;
 }
 
+function tournamentLeaderboard(opponents, self, progress = null) {
+  const ranked = (self.time === null ? [...opponents] : [...opponents, self])
+    .sort((a, b) => Math.round(a.time * 100) - Math.round(b.time * 100));
+  const visible = ranked.map((entry, index) => ({ ...entry, rank: index + 1 })).filter((entry, index) =>
+    index < 100 || (progress && (ranked[index] === self ||
+      (progress.time < Math.round(entry.time * 100) &&
+        (progress.previous === null || progress.previous >= Math.round(entry.time * 100))))));
+  const index = ranked.indexOf(self);
+  if (index < 0 || (!progress && index >= 100)) visible.push({ ...self, rank: index < 0 ? null : index + 1 });
+  return visible;
+}
+
 function startTournament(opponent) {
-  if (!$('race-intro').hidden) return;
+  if (tournamentDemo || !$('race-intro').hidden) return;
+  finishTournamentOvertake?.();
   const today = dailyTournament(new Date(), tournamentMode);
   if (today.day !== displayedTournament?.day) {
     openTournamentPage();
     return;
   }
   tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
-  activeTournament = { ...today, opponent };
+  const replay = opponent.ai ? simulateTournamentOpponent(today.track, opponent, true) : null;
+  activeTournament = { ...today, opponent: replay ? { ...opponent, ...replay } : opponent };
   selectTrack(today.track.id);
   enterRace();
 }
 
-function showTournamentRacers(tournament, best) {
+function showTournamentRacers(tournament, best, progress = null) {
   tournamentRows = [];
   tournamentVehicleScale = 0;
   selectedTournamentRow = null;
   const opponents = tournamentOpponents(tournament.track);
   const selectedCar = cars.find(({ id }) => id === $('car').value) ?? cars[0];
   const self = { name: 'Toi', time: best ? best.time / 100 : null, car: selectedCar };
-  const entries = [self, ...opponents, ...['Master', 'Pro'].map((name) => ({
+  const visible = tournamentLeaderboard(opponents, self, progress);
+  const unlisted = !progress && visible.length > 100 ? visible.pop() : null;
+  const entries = [...visible, ...['Master', 'Pro'].map((name) => ({
     name, marker: true, time: tournament[name.toLowerCase()] / 100,
-  })), { name: 'Novice', marker: true, time: (tournament.pro + 1) / 100 }]
-    .sort((a, b) => (a.time ?? Infinity) - (b.time ?? Infinity));
+  })), { name: 'Novice', marker: true, time: (tournament.pro + 1) / 100 }];
+  const times = entries.map(({ time }) => time).filter(Number.isFinite);
+  const min = Math.min(...times);
+  const max = Math.max(...times);
+  const interval = Math.max(5, Math.ceil((max - min) / 40) * 5);
+  for (let time = Math.ceil(min / interval) * interval; time < max; time += interval) {
+    if (times.every((existing) => Math.abs(existing - time) >= 1)) entries.push({ tick: true, time });
+  }
+  entries.sort((a, b) => (a.time ?? Infinity) - (b.time ?? Infinity));
+  if (unlisted) entries.push(unlisted);
   let previousTime = null;
   $('tournament-racers').replaceChildren(...entries.map((entry) => {
     const row = document.createElement('li');
@@ -104,6 +254,11 @@ function showTournamentRacers(tournament, best) {
       row.style.marginTop = Math.min(112, Math.round((entry.time - previousTime) * 7)) + 'px';
     }
     previousTime = entry.time;
+    if (entry.tick) {
+      row.className = 'tournament-time-tick';
+      row.textContent = tournamentScore(entry.time);
+      return row;
+    }
     if (entry.marker) {
       row.className = 'tournament-marker';
       row.dataset.division = entry.name.toLowerCase();
@@ -115,7 +270,7 @@ function showTournamentRacers(tournament, best) {
       row.append(badge, time);
       return row;
     }
-    if (entry === self) row.id = 'tournament-self';
+    if (!entry.ai) row.id = 'tournament-self';
     const card = document.createElement('button');
     card.className = 'tournament-racer';
     const icon = document.createElement('canvas');
@@ -124,7 +279,7 @@ function showTournamentRacers(tournament, best) {
     const caption = document.createElement('span');
     caption.className = 'tournament-racer-caption';
     const label = document.createElement('span');
-    label.textContent = entry.name;
+    label.textContent = entry.rank === null ? entry.name : '#' + entry.rank + ' ' + entry.name;
     caption.append(label);
     if (entry.time !== null) {
       const time = document.createElement('strong');
@@ -133,7 +288,7 @@ function showTournamentRacers(tournament, best) {
     }
     card.append(icon, caption);
     card.type = 'button';
-    card.setAttribute('aria-label', entry.name + (entry.time === null ? '' : ' · ' + tournamentScore(entry.time)));
+    card.setAttribute('aria-label', label.textContent + (entry.time === null ? '' : ' · ' + tournamentScore(entry.time)));
     card.setAttribute('aria-pressed', 'false');
     card.addEventListener('click', () => centerTournamentRow(row, homeMotion.matches ? 'instant' : 'smooth'));
     tournamentRows.push({ element: row, button: card, icon, entry });
@@ -213,6 +368,7 @@ function showTournament(tournament) {
   $('tournament-best').textContent = best
     ? 'Ton record · ' + tournamentScore(best.time / 100)
     : 'Premier chrono à établir';
+  $('tournament-first-help').hidden = Boolean(best);
   const proUnlocked = tournamentProUnlocked();
   $('tournament-pro-tab').textContent = proUnlocked ? 'Pro' : 'Pro 🔒';
   $('tournament-sprint-tab').setAttribute('aria-pressed', String(tournament.category === 'sprint'));
@@ -230,12 +386,18 @@ function showTournament(tournament) {
 function recordTournamentResult(seconds) {
   const label = $('tournament-result');
   label.hidden = !activeTournament;
+  const firstResult = $('tournament-first-result');
+  firstResult.hidden = true;
   if (!activeTournament) return;
   const { day, track } = activeTournament;
   const key = tournamentHistoryKey(activeTournament);
   const history = parseSave(key, {});
   const time = Math.round(seconds * 100);
+  firstResult.hidden = Boolean(history[day]);
   if (!history[day] || time < history[day].time) {
+    activeTournament.improved = true;
+    const previous = activeTournament.progress ? activeTournament.progress.previous : history[day]?.time ?? null;
+    activeTournament.progress = { previous, time };
     history[day] = { time, track: track.name, division: tournamentDivision(activeTournament, time), car: player.car.id };
     const days = Object.keys(history).sort((a, b) => Number(b) - Number(a)).slice(0, 30);
     save(key, JSON.stringify(Object.fromEntries(days.map((entry) => [entry, history[entry]]))));
@@ -292,22 +454,26 @@ function homeRoadScale(width, tournament) {
   return base * (tournament ? (width > 750 ? 1.55 : 1.3) : 1);
 }
 
-function tournamentVehicleExtent(car) {
+function tournamentVehicleBounds(car) {
   let radius = 0;
+  let width = 0;
   for (const visual of car.images) {
     if (visual.alpha === 0 || (visual.shadowIcon && !visual.shadow) ||
         !effectEnabled(visual, { powered: true }, true)) continue;
     const offset = Math.hypot(visual.x, visual.y) + Math.abs(visual.parallax ?? 0);
     radius = Math.max(radius, offset + Math.hypot(visual.width, visual.height) / 2);
+    const angle = (visual.angle ?? 0) * Math.PI / 180;
+    const halfWidth = (Math.abs(Math.cos(angle)) * visual.width + Math.abs(Math.sin(angle)) * visual.height) / 2;
+    width = Math.max(width, Math.abs(visual.x) + Math.abs(visual.parallax ?? 0) + halfWidth);
   }
-  return radius;
+  return { radius, width: width + radius * Math.sin(2 * Math.PI / 180) };
 }
 
 function paintTournamentVehicles(scale) {
   if (scale === tournamentVehicleScale) return;
   tournamentVehicleScale = scale;
   for (const { icon, button, entry } of tournamentRows) {
-    const extent = tournamentVehicleExtent(entry.car) * scale;
+    const extent = tournamentVehicleBounds(entry.car).radius * scale;
     button.style.minHeight = Math.max(160, Math.ceil(extent * 2 + 24)) + 'px';
     const dc = icon.getContext('2d');
     dc.resetTransform();
@@ -336,7 +502,7 @@ function paintHomeRoad(dt, board = $('home-road'), roadCourse = course, tourname
   }
   const dc = board.getContext('2d');
   const car = player.car;
-  const center = width * axis;
+  const center = width * axis + (tournament ? tournamentRoadPan : 0);
   const scale = homeRoadScale(width, tournament);
   const tileHeight = 256 * scale;
   const terrain = roadCourse.menuTerrain;
@@ -354,8 +520,9 @@ function paintHomeRoad(dt, board = $('home-road'), roadCourse = course, tourname
   dc.fillStyle = color(terrain[1].color ?? roadCourse.background);
   dc.fillRect(center, 0, width - center, height);
 
+  const roadScaleX = scale * (tournament ? tournamentRoadWiden : 1);
   for (let y = loop(travel * scale, tileHeight) - tileHeight; y < height; y += tileHeight) {
-    dc.drawImage(road, center - 256 * scale, Math.floor(y), 512 * scale, Math.ceil(tileHeight));
+    dc.drawImage(road, center - 256 * roadScaleX, Math.floor(y), 512 * roadScaleX, Math.ceil(tileHeight));
   }
 
   for (const [side, area] of terrain.entries()) {
@@ -363,7 +530,7 @@ function paintHomeRoad(dt, board = $('home-road'), roadCourse = course, tourname
     for (let row = -1; row <= Math.ceil(height / (scenerySpacing * scale)); row++) {
       const index = loop(row - Math.floor(travel / scenerySpacing), sceneryPeriod);
       const y = (row * scenerySpacing + loop(travel, scenerySpacing)) * scale;
-      const distance = 152 + loop(index * 91 + side * 75, 148);
+      const distance = 152 + loop(index * 91 + side * 75, 148) + (tournament ? 90 * (tournamentRoadWiden - 1) : 0);
       const x = center + (side === 0 ? -1 : 1) * distance * scale;
       dc.save();
       dc.translate(x, y);
@@ -523,6 +690,10 @@ function showRaceScreen() {
 
 function returnHome() {
   const fromTournament = Boolean(activeTournament);
+  const progress = activeTournament?.progress;
+  const completedDay = activeTournament?.day;
+  const completedCategory = activeTournament?.category;
+  if (activeTournament?.improved) tournamentScroll.delete(activeTournament.category);
   activeTournament = null;
   if (fromTournament) selectTrack();
   else reset();
@@ -532,6 +703,9 @@ function returnHome() {
   syncMenuAudio();
   if (fromTournament) {
     openTournamentPage();
+    if (progress && displayedTournament.day === completedDay && displayedTournament.category === completedCategory) {
+      animateTournamentOvertake(progress);
+    }
     return;
   }
   $('home').hidden = false;
@@ -570,8 +744,14 @@ function showModePage(id, slide) {
 }
 
 function openTournamentPage(slide = false) {
+  finishTournamentOvertake?.();
+  $('tournament-overtake').hidden = true;
+  const wasDemo = tournamentDemo;
+  tournamentDemo = false;
+  $('tournament-demo').textContent = 'Aperçu 121e → 5e';
+  $('tournament-enter').disabled = false;
   const road = $('tournament-road-scroll');
-  if (displayedTournament && !$('tournament').hidden) tournamentScroll.set(displayedTournament.category, road.scrollTop);
+  if (!wasDemo && displayedTournament && !$('tournament').hidden) tournamentScroll.set(displayedTournament.category, road.scrollTop);
   const today = dailyTournament();
   if (displayedTournament?.day !== today.day) tournamentScroll.clear();
   if (tournamentMode === 'pro' && !tournamentProUnlocked()) tournamentMode = 'sprint';
@@ -584,6 +764,27 @@ function openTournamentPage(slide = false) {
   updateTournamentSelection();
   window.scrollTo(0, 0);
   $('tournament-title').focus({ preventScroll: true });
+}
+
+function toggleTournamentDemo() {
+  if (tournamentDemo) {
+    openTournamentPage();
+    return;
+  }
+  const tournament = displayedTournament;
+  const opponents = tournamentOpponents(tournament.track).slice().sort((a, b) => a.time - b.time);
+  const time = Math.round(opponents[3].time * 100);
+  const previous = Math.round(opponents.at(-1).time * 100) + 1;
+  const road = $('tournament-road-scroll');
+  tournamentScroll.set(tournamentMode, road.scrollTop);
+  tournamentDemo = true;
+  $('tournament-demo').textContent = 'Quitter l’aperçu';
+  $('tournament-enter').disabled = true;
+  showTournamentRacers(tournament, { time });
+  paintTournamentRoad();
+  centerTournamentRow($('tournament-self'));
+  updateTournamentSelection();
+  animateTournamentOvertake({ previous, time }, { time });
 }
 
 function paintTournamentRoad(dt = 0) {
@@ -633,7 +834,8 @@ function initializeHome() {
   $('garage-open').addEventListener('click', openGarage);
   $('tournament-open').addEventListener('click', () => openTournamentPage(true));
   $('solo-open').addEventListener('click', () => {
-    tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
+    finishTournamentOvertake?.();
+    if (!tournamentDemo) tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
     showModePage('home', true);
     refreshHome();
     window.scrollTo(0, 0);
@@ -641,11 +843,16 @@ function initializeHome() {
   });
   $('tournament-enter').addEventListener('click', () => {
     const entry = selectedTournamentRow?.entry;
-    startTournament(entry?.points ? entry : tournamentOpponents(displayedTournament.track)[0]);
+    startTournament(entry?.ai ? entry : tournamentReferenceOpponent(displayedTournament.track));
   });
+  $('tournament-demo').addEventListener('click', toggleTournamentDemo);
   $('tournament-road-scroll').addEventListener('scroll', updateTournamentSelection, { passive: true });
+  for (const event of ['wheel', 'pointerdown']) {
+    $('tournament-road-scroll').addEventListener(event, () => finishTournamentOvertake?.(), { passive: true });
+  }
   $('tournament-road-scroll').addEventListener('keydown', (event) => {
     if (!['ArrowUp', 'ArrowDown'].includes(event.key) || !selectedTournamentRow) return;
+    finishTournamentOvertake?.();
     event.preventDefault();
     const index = tournamentRows.indexOf(selectedTournamentRow) + (event.key === 'ArrowUp' ? -1 : 1);
     const next = tournamentRows[index];

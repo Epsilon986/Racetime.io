@@ -69,7 +69,13 @@
   <div id="race-intro" class="race-intro" hidden aria-hidden="true">
     <div class="race-intro-panel"></div>
     <div class="race-intro-panel"></div>
-    <strong id="race-intro-track"></strong>
+    <div class="race-intro-content">
+      <strong id="race-intro-track"></strong>
+      <div id="race-intro-duel" class="race-intro-duel" hidden>
+        <div><canvas id="intro-player-car" width="80" height="80"></canvas><span>Toi</span></div>
+        <div><canvas id="intro-opponent-car" width="80" height="80"></canvas><span id="intro-opponent-name"></span><span id="intro-opponent-time"></span></div>
+      </div>
+    </div>
   </div>
   <main id="race-screen" class="race-screen" hidden>
     <canvas id="race" tabindex="0" aria-label="Circuit vu du dessus" aria-keyshortcuts="R Space Enter Escape"></canvas>
@@ -82,21 +88,26 @@
       </div>
       <button id="sound" class="home-action" aria-pressed="true"><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas><span id="race-sound-label">Son activé</span></button>
     </header>
+    <p id="final-lap" class="final-lap" role="status" hidden>Dernier tour !</p>
     <section id="notice" class="race-result" aria-labelledby="result-title" hidden>
       <h2 id="result-title" role="status"></h2>
       <div class="result-cards">
         <div class="result-card">
+          <span id="result-player-rank" class="result-rank" hidden></span>
           <canvas id="result-car" width="80" height="80" aria-hidden="true"></canvas>
           <span>Toi</span>
           <strong id="result-time"></strong>
         </div>
         <div id="result-opponent" class="result-card" hidden>
+          <span id="result-opponent-rank" class="result-rank"></span>
           <canvas id="result-ghost-car" width="80" height="80" aria-hidden="true"></canvas>
           <span id="result-ghost-label">Fantôme</span>
           <strong id="result-ghost-time"></strong>
         </div>
       </div>
+      <p id="result-gap" hidden></p>
       <p id="tournament-result" hidden></p>
+      <p id="tournament-first-result" hidden>Ton premier chrono est inscrit. Tu peux reprendre la piste pour améliorer ton classement.</p>
       <p id="pro-track-unlocked" hidden></p>
       <button id="result-action" class="race-launch" type="button"></button>
     </section>
@@ -122,6 +133,8 @@
       <h1 id="tournament-title" tabindex="-1"></h1>
       <p id="tournament-track"></p>
       <p id="tournament-best"></p>
+      <p id="tournament-overtake" role="status" hidden></p>
+      <p id="tournament-first-help" hidden>Maintiens la piste ou Espace pour accélérer. Relâche avant les virages. Ton chrono te place sur la route du classement.</p>
       <p id="tournament-pro-lock" role="status" hidden></p>
       <p id="tournament-previous" hidden></p>
       <button id="tournament-locate" class="quiet" type="button">Me retrouver</button>
@@ -130,12 +143,14 @@
       <ol id="tournament-racers"></ol>
     </section>
     <aside class="tournament-selection" aria-labelledby="tournament-selected-name">
+      <p id="tournament-selected-rank"></p>
       <h2 id="tournament-selected-name"></h2>
       <p id="tournament-selected-car"></p>
       <p id="tournament-selected-time"></p>
       <span id="tournament-selected-division" hidden></span>
       <button id="tournament-enter" class="race-launch" type="button">Participer</button>
     </aside>
+    <button class="quiet mode-nav-button" id="tournament-demo" type="button">Aperçu 121e → 5e</button>
     <button class="quiet mode-nav-button" id="solo-open" type="button">Course libre →</button>
   </main>
 

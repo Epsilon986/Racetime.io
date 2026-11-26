@@ -168,6 +168,7 @@ body:has(.home:not([hidden])) { display: block; }
 #tournament-locate { margin: 10px 0 0; pointer-events: auto; }
 .mode-nav-button { position: absolute; z-index: 3; bottom: 12px; }
 #solo-open { right: 15px; }
+#tournament-demo { left: 15px; font-size: .85rem; }
 #tournament-open { left: 15px; }
 #home .home-ranking { top: auto; bottom: max(66px, 10%); }
 #tournament-pro-lock { color: #ffe29b; }
@@ -184,8 +185,21 @@ body:has(.home:not([hidden])) { display: block; }
   container-type: size;
 }
 .tournament-road-scroll::-webkit-scrollbar { display: none; }
+.tournament-road-scroll.tournament-overtaking { width: clamp(540px, 100%, 780px); scroll-snap-type: none; }
+.tournament-overtake-player { position: relative; z-index: 1; }
+#tournament-overtake { color: #eaff91; font-weight: 900; }
 #tournament-racers { margin: 0; padding: max(0px, calc(50cqh - 80px)) 6px; list-style: none; }
+.tournament-overtaking #tournament-racers { padding-bottom: calc(max(0px, 50cqh - 80px) + var(--overtake-runout, 0px)); }
 #tournament-racers li { margin-bottom: 30px; }
+#tournament-racers .tournament-time-tick {
+  margin-bottom: 8px;
+  border-top: 2px dashed #e6f3ff85;
+  color: white;
+  text-align: center;
+  font-size: .78rem;
+  font-weight: 800;
+  text-shadow: 0 2px 4px #081c2f;
+}
 #tournament-racers li:has(.tournament-racer) { scroll-snap-align: center; scroll-snap-stop: always; }
 #tournament-racers .tournament-marker {
   --division-color: #ffc850;
@@ -246,37 +260,22 @@ body:has(.home:not([hidden])) { display: block; }
 }
 #tournament-racers li:nth-child(even) canvas { animation-delay: -.8s; }
 .tournament-racer-caption {
-  position: relative;
   grid-column: 3;
   display: grid;
   justify-self: start;
-  gap: 2px;
-  padding: 5px 8px;
-  border: 3px solid #142135;
-  border-radius: 11px;
-  background: #fff8de;
-  box-shadow: 0 4px #142135;
-  color: #233755;
+  transform: translateX(var(--tournament-player-shift, 0px));
+  padding: 4px 8px;
+  border-left: 2px solid #d9ff73;
+  border-radius: 0 7px 7px 0;
+  background: #08203ee8;
+  color: #e6f3ff;
   font-size: clamp(.72rem, 1.6vw, .95rem);
   font-weight: 850;
+  white-space: nowrap;
 }
-.tournament-racer-caption::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: -7px;
-  width: 8px;
-  height: 8px;
-  transform: translateY(-50%) rotate(45deg);
-  border: solid #142135;
-  border-width: 0 0 3px 3px;
-  background: inherit;
-}
-#tournament-self .tournament-racer-caption { background: #d9ff87; }
-.tournament-racer strong { color: #183c78; font-size: 1.16em; font-variant-numeric: tabular-nums; }
-button.tournament-racer:hover .tournament-racer-caption { background: #ffdf79; }
+.tournament-racer-caption strong { color: #fff2a4; font-size: 1.16em; font-variant-numeric: tabular-nums; }
+button.tournament-racer:hover .tournament-racer-caption { background: #12395a; }
 .tournament-racer[aria-pressed="true"] canvas { filter: drop-shadow(0 0 8px #ffe878) drop-shadow(0 6px 2px #0008); }
-.tournament-racer[aria-pressed="true"] .tournament-racer-caption { border-color: #906900; }
 .tournament-racer:focus-visible { outline-offset: -2px; }
 .tournament-selection {
   position: absolute;
@@ -293,6 +292,7 @@ button.tournament-racer:hover .tournament-racer-caption { background: #ffdf79; }
 }
 .tournament-selection h2, .tournament-selection p { margin: 0 0 4px; }
 #tournament-selected-car { color: #deedfa; font-size: .88rem; }
+#tournament-selected-rank { color: #d9ff9d; font-weight: 900; font-variant-numeric: tabular-nums; }
 #tournament-selected-time { color: #fff2a4; font-size: clamp(1.1rem, 2.6vw, 2rem); font-weight: 900; font-variant-numeric: tabular-nums; }
 #tournament-selected-division {
   display: table;
@@ -363,7 +363,7 @@ button.tournament-racer:hover .tournament-racer-caption { background: #ffdf79; }
   }
   .tournament-selection h2, .tournament-selection p { grid-column: 1; margin: 0; }
   #tournament-selected-division { grid-column: 1; justify-self: start; margin: 2px 0 0; }
-  .tournament-selection #tournament-enter { grid-area: 1 / 2 / span 4; margin: 0; min-height: 42px; }
+  .tournament-selection #tournament-enter { grid-area: 1 / 2 / span 5; margin: 0; min-height: 42px; }
   .circuit-controls { max-width: 260px; margin: 10px auto 0; }
   .circuit-modes { justify-content: center; gap: 20px; }
   .home-ranking { top: auto; bottom: 17px; left: 18px; right: 18px; width: auto; max-width: 380px; margin-inline: auto; }

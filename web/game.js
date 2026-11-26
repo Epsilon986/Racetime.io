@@ -47,6 +47,7 @@ let soundContext, engineVoice;
 const engineBuffers = new Map();
 let priorFrame = 0;
 let retryResult = false;
+let finalLapUntil = 0;
 
 function recording(name) {
   return recordings[name] ??= new Audio('assets/' + name + '.ogg');
@@ -420,6 +421,8 @@ function reset() {
   $('track').disabled = false;
   $('car').disabled = false;
   $('notice').hidden = true;
+  $('final-lap').hidden = true;
+  finalLapUntil = 0;
   setupPlayer();
   personalGhost = activeTournament ? null : readGhost();
   const reference = referenceGhost(course);
@@ -437,6 +440,13 @@ function startRace({ intro = false } = {}) {
   if (intro) {
     startTime = -raceIntroDuration;
     $('race-intro-track').textContent = course.name;
+    $('race-intro-duel').hidden = !ghost;
+    if (ghost) {
+      paintResultCar('intro-player-car', player.car);
+      paintResultCar('intro-opponent-car', ghost.car);
+      $('intro-opponent-name').textContent = ghost.name ?? (ghost.reference ? 'Référence' : 'Fantôme');
+      $('intro-opponent-time').textContent = (activeTournament ? tournamentScore : clock)(ghost.time);
+    }
     $('race-intro').hidden = false;
     play('vs_whoosh', 0.8);
   }
@@ -463,7 +473,14 @@ function updatePlayer() {
   if (physicsTicks % replayInterval === 0 || finished) replay.push(pose);
   updateRaceAudio(powered);
   updateVehicleEffects(player, pose, elapsed, racePhysics.step, powered);
-  if (lastLap === 1 && player.lap === 2) play('2nd_lap');
+  if (lastLap === 1 && player.lap === totalLaps) {
+    finalLapUntil = elapsed + 1.2;
+    $('final-lap').hidden = false;
+    play('2nd_lap');
+  } else if (finalLapUntil && elapsed >= finalLapUntil) {
+    $('final-lap').hidden = true;
+    finalLapUntil = 0;
+  }
   return finished;
 }
 
@@ -487,6 +504,7 @@ function paintResultCar(id, car) {
 
 function finish() {
   mode = 'finished';
+  $('final-lap').hidden = true;
   physicsRemainder = 0;
   controls.clear();
   stopRaceAudio();
@@ -529,13 +547,20 @@ function finish() {
     : 'Course terminée';
   const formatScore = activeTournament ? tournamentScore : clock;
   $('result-time').textContent = formatScore(elapsed);
+  $('result-player-rank').hidden = !opponent;
+  $('result-gap').hidden = !opponent;
   paintResultCar('result-car', player.car);
   $('result-opponent').hidden = !opponent;
   if (opponent) {
+    $('result-player-rank').textContent = margin === 0 ? 'Ex æquo' : margin < 0 ? '1er' : '2e';
+    $('result-opponent-rank').textContent = margin === 0 ? 'Ex æquo' : margin < 0 ? '2e' : '1er';
+    $('result-gap').textContent = margin === 0 ? 'Même chrono' :
+      tournamentScore(Math.abs(margin) / 100) + (margin < 0 ? ' d’avance' : ' de retard');
     $('result-ghost-time').textContent = formatScore(opponent.time);
     paintResultCar('result-ghost-car', opponent.car);
   }
   $('result-action').textContent = retryResult ? 'Rejouer' : 'Continuer';
+  $('notice').dataset.verdict = opponent && margin < 0 ? 'win' : '';
   $('notice').hidden = false;
   $('result-action').focus({ preventScroll: true });
 }

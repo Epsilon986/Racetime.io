@@ -40,6 +40,28 @@ kbd { color: #fff; padding: 1px 5px; border: 1px solid #a1b6cd94; border-radius:
   clip-path: polygon(71% 0, 100% 0, 100% 100%, 28% 100%);
   animation-name: race-intro-right;
 }
+.race-intro-content {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  animation: race-intro-title 1.6s both;
+}
+.race-intro-duel {
+  display: flex;
+  gap: 8px;
+}
+.race-intro-duel > div {
+  display: grid;
+  justify-items: center;
+  min-width: 104px;
+  padding: 4px 9px;
+  border: 1px solid #e0eeff87;
+  border-radius: 9px;
+  background: #08203e;
+  font-weight: 800;
+}
+.race-intro-duel canvas { width: 58px; height: 58px; }
 .race-intro strong {
   position: relative;
   padding: .2em .55em;
@@ -47,7 +69,6 @@ kbd { color: #fff; padding: 1px 5px; border: 1px solid #a1b6cd94; border-radius:
   color: white;
   font-size: clamp(1.6rem, 7vw, 4.5rem);
   text-align: center;
-  animation: race-intro-title 1.6s both;
 }
 @keyframes race-intro-left {
   0%, 100% { transform: translateX(-100%); }
@@ -62,7 +83,7 @@ kbd { color: #fff; padding: 1px 5px; border: 1px solid #a1b6cd94; border-radius:
   24%, 76% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .race-intro-panel, .race-intro strong { animation: none; }
+  .race-intro-panel, .race-intro-content { animation: none; }
 }
 .race-screen::after {
   content: '';
@@ -111,6 +132,38 @@ kbd { color: #fff; padding: 1px 5px; border: 1px solid #a1b6cd94; border-radius:
 .result-card canvas { width: clamp(44px, 11vh, 80px); height: auto; }
 .result-card strong { font-size: clamp(1.2rem, 5vw, 2rem); font-variant-numeric: tabular-nums; }
 .race-result button { pointer-events: auto; }
+.result-rank { color: #ffdb72; font-size: .82rem; font-weight: 900; }
+#result-gap, #tournament-first-result { margin: 0; font-weight: 750; }
+#tournament-first-result { max-width: 32rem; }
+.race-result[data-verdict="win"] h2 { color: #e9ff88; animation: victory-pop 300ms ease-out both; }
+.final-lap {
+  position: absolute;
+  z-index: 2;
+  top: max(20%, 95px);
+  left: 50%;
+  margin: 0;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 9px;
+  background: #08203e;
+  color: #e9ff88;
+  font-size: clamp(1rem, 4vw, 1.65rem);
+  font-weight: 900;
+  pointer-events: none;
+  animation: final-lap-show 1.2s both;
+}
+@keyframes victory-pop {
+  0% { transform: scale(.85); }
+  65% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes final-lap-show {
+  0%, 100% { opacity: 0; }
+  15%, 80% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .race-result[data-verdict="win"] h2, .final-lap { animation: none; }
+}
 #tournament-result, #pro-track-unlocked {
   margin: 0;
   padding: 5px 12px;
