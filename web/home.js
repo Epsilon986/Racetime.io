@@ -24,6 +24,8 @@ function clearTournamentCelebration() {
   clearTimeout(tournamentPromotionTimer);
   tournamentPromotionTimer = undefined;
   tournamentPromotionQueue.length = 0;
+  recordings.win_prize?.pause();
+  recordings.tournament_results?.pause();
   $('tournament-gain-overlay').hidden = true;
   $('tournament-promotion').hidden = true;
 }
@@ -35,6 +37,7 @@ function playTournamentPromotions() {
   banner.dataset.division = division;
   banner.textContent = 'Division ' + division;
   banner.hidden = false;
+  play('win_prize', 0.45);
   banner.getAnimations().forEach((animation) => animation.cancel());
   banner.animate([
     { opacity: 0, transform: 'translateX(-50%) scale(.86)' },
@@ -141,6 +144,8 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
     start, first, last, end: target,
   };
   self.element.classList.add('tournament-overtake-player');
+  const engineSound = self.entry.car.thrustSound;
+  const overtakeSounds = new Set([engineSound]);
   let frame;
   finishTournamentOvertake = (completed = false) => {
     cancelAnimationFrame(frame);
@@ -160,17 +165,28 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
     if (completed) {
       if (self.entry.rank <= 3) $('tournament-self').classList.add('tournament-podium-arrival');
       showTournamentGain(count, self.entry.rank, true);
+      play('tournament_results', 0.5);
       tournamentGainTimer = setTimeout(() => { $('tournament-gain-overlay').hidden = true; }, 1100);
     } else {
+      for (const name of overtakeSounds) recordings[name]?.pause();
       clearTournamentCelebration();
     }
   };
   const duration = Math.max(2700, 1350 + passed.length * 155);
   let started;
+  let previousRank;
+  let passSound = 1;
   function moveTo(position) {
     road.scrollTop = position;
     self.button.style.translate = '0 ' + (road.scrollTop - target) + 'px';
     const rank = self.entry.rank + crossings.filter(({ position }) => road.scrollTop > position).length;
+    if (rank < previousRank) {
+      const sound = 'whoosh_pass_0' + passSound;
+      play(sound, 0.26);
+      overtakeSounds.add(sound);
+      passSound = passSound % 5 + 1;
+    }
+    previousRank = rank;
     $('tournament-selected-rank').textContent = '#' + rank;
     showTournamentGain(count - (rank - self.entry.rank), rank);
     while (promotionCrossings.length && road.scrollTop <= Math.max(target, promotionCrossings[0].position)) {
@@ -193,6 +209,7 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
     else finishTournamentOvertake(true);
   }
   moveTo(start);
+  play(engineSound, 0.34);
   frame = requestAnimationFrame(advance);
 }
 
@@ -1025,9 +1042,15 @@ function initializeHome() {
   $('tournament-locate').addEventListener('click', () => {
     centerTournamentRow($('tournament-self'), homeMotion.matches ? 'instant' : 'smooth');
   });
+  const gifts = $('gifts');
+  let giftRevealTimer;
+  gifts.addEventListener('close', () => {
+    clearTimeout(giftRevealTimer);
+    recordings.open_free_gift_a?.pause();
+  });
   $('gift-open').addEventListener('click', () => {
     refreshGift();
-    $('gifts').showModal();
+    gifts.showModal();
   });
   $('gift-claim').addEventListener('click', () => {
     const current = parseSave('daily-gift', {});
@@ -1035,11 +1058,28 @@ function initializeHome() {
     if (current.day === day) return;
     const balance = Number.isSafeInteger(current.coins) ? current.coins : 0;
     save('daily-gift', JSON.stringify({ day, coins: balance + 50 }));
-    refreshGift(parseSave('daily-gift', {}).day === day);
+    $('gift-claim').disabled = true;
+    $('gift-status').textContent = 'Ouverture du cadeau…';
+    play('open_free_gift_a', 0.5);
+    if (!homeMotion.matches) {
+      $('gift-art').animate(
+        [{ transform: 'rotate(-8deg)' }, { transform: 'rotate(8deg)' }, { transform: 'rotate(0deg)' }],
+        380
+      );
+    }
+    giftRevealTimer = setTimeout(() => {
+      if (!gifts.open) return;
+      const claimed = parseSave('daily-gift', {}).day === day;
+      refreshGift(claimed);
+      if (!claimed) return;
+      recordings.open_free_gift_a?.pause();
+      play('open_free_gift_b', 0.48);
+      play('collect_coin', 0.32);
+    }, 380);
   });
   $('home-road').addEventListener('click', enterRace);
   window.addEventListener('keydown', (event) => {
-    if (!$('tournament').hidden || $('home').hidden || $('garage').open || $('gifts').open || event.repeat ||
+    if (!$('tournament').hidden || $('home').hidden || $('garage').open || gifts.open || $('audio-settings').open || event.repeat ||
         event.ctrlKey || event.metaKey || event.altKey ||
         !['Space', 'Enter'].includes(event.code) || event.target.closest?.('button, select, a, input')) return;
     event.preventDefault();

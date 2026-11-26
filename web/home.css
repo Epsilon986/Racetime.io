@@ -96,6 +96,9 @@ body:has(.home:not([hidden])) { display: block; }
 @media (pointer: coarse) { .hint-keyboard { display: none; } .hint-touch { display: inline; } }
 .home-dialog { width: min(680px, calc(100% - 28px)); max-height: 84dvh; padding: 20px; border: 1px solid #abcfff64; border-radius: 18px; background: #102947; color: #f4f8ff; }
 .home-dialog::backdrop { background: #020b17cb; }
+.audio-dialog { max-width: 360px; }
+.audio-dialog label { display: flex; gap: 10px; align-items: center; min-height: 42px; }
+.audio-dialog input { width: 18px; height: 18px; accent-color: var(--accent); }
 .solo-mode-label {
   position: absolute;
   z-index: 2;
@@ -134,6 +137,14 @@ body:has(.home:not([hidden])) { display: block; }
   pointer-events: none;
 }
 #tournament-clock { color: white; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+#tournament-sound {
+  position: absolute;
+  top: 10px;
+  right: clamp(8px, 2vw, 28px);
+  padding-inline: 8px;
+  pointer-events: auto;
+  font-size: .85rem;
+}
 .tournament-logo {
   position: absolute;
   top: clamp(12px, 2.5vh, 25px);
