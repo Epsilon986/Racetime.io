@@ -41,6 +41,8 @@ let physicsTicks = 0;
 let physicsRemainder = 0;
 let previousPose;
 let muted = load('muted') === 'true';
+let musicEnabled = load('music-enabled') !== 'false';
+let effectsEnabled = load('effects-enabled') !== 'false';
 let wallVolume = 0;
 let thrustVolume = 0;
 let soundContext, engineVoice;
@@ -54,7 +56,7 @@ function recording(name) {
 }
 
 function play(name, volume = 0.5) {
-  if (muted) return;
+  if (muted || !(name.startsWith('music_') ? musicEnabled : effectsEnabled)) return;
   const audio = recording(name);
   audio.volume = volume;
   audio.currentTime = 0;
@@ -83,7 +85,7 @@ function setLoop(name, volume) {
 
 function syncMenuAudio() {
   const inMenu = (mode === 'loading' || mode === 'ready') && $('race-screen').hidden && $('race-intro').hidden;
-  setLoop('music_menu', !muted && inMenu ? 0.28 : 0);
+  setLoop('music_menu', !muted && musicEnabled && inMenu ? 0.28 : 0);
 }
 
 function prepareSustain(buffer) {
@@ -122,7 +124,7 @@ function loadEngine(name) {
 
 function enableEngineAudio() {
   const AudioEngine = window.AudioContext || window.webkitAudioContext;
-  if (muted || !AudioEngine) return;
+  if (muted || !effectsEnabled || !AudioEngine) return;
   soundContext ??= new AudioEngine();
   if (soundContext.state !== 'running') soundContext.resume().catch(() => {});
   loadEngine(player.car.thrustSound);
@@ -136,6 +138,7 @@ function setEngineVolume(name, volume) {
       voice.source.stop();
       voice.source.disconnect();
       voice.gain.disconnect();
+      voice.sustainGain.disconnect();
     }
     return;
   }
@@ -147,33 +150,47 @@ function setEngineVolume(name, volume) {
       if (!sustain || engineVoice !== voice) return;
       const source = voice.source = soundContext.createBufferSource();
       const gain = voice.gain = soundContext.createGain();
+      const sustainGain = voice.sustainGain = soundContext.createGain();
       source.buffer = sustain.buffer;
       source.loop = true;
       source.loopStart = sustain.loopStart;
       source.loopEnd = sustain.loopEnd;
       gain.gain.value = voice.volume;
-      source.connect(gain).connect(soundContext.destination);
-      source.start();
+      const start = soundContext.currentTime;
+      sustainGain.gain.setValueAtTime(1, start + sustain.loopEnd);
+      sustainGain.gain.setTargetAtTime(0.78, start + sustain.loopEnd, 0.12);
+      source.connect(gain).connect(sustainGain).connect(soundContext.destination);
+      source.start(start);
     });
   }
   engineVoice.volume = volume;
   engineVoice.gain?.gain.setTargetAtTime(volume, soundContext.currentTime, 0.012);
 }
 
-function stopRaceAudio() {
+function stopEffects() {
   setEngineVolume(null, 0);
   for (const name of loops.keys()) {
-    if (name !== 'music_menu') setLoop(name, 0);
+    if (!name.startsWith('music_')) setLoop(name, 0);
   }
   for (const [name, audio] of Object.entries(recordings)) {
-    if (name !== 'music_menu') audio.pause();
+    if (!name.startsWith('music_')) audio.pause();
   }
   wallVolume = 0;
   thrustVolume = 0;
 }
 
+function stopResultMusic() {
+  recordings.music_win?.pause();
+  recordings.music_lose?.pause();
+}
+
+function stopRaceAudio() {
+  stopEffects();
+  stopResultMusic();
+}
+
 function updateRaceAudio(powered) {
-  if (muted) return;
+  if (muted || !effectsEnabled) return;
   // A short release bridges brief gaps between adjacent wall-contact ticks.
   wallVolume = player.wallContact ? Math.min(0.42, wallVolume + 0.21) : Math.max(0, wallVolume - 0.105);
   thrustVolume = powered ? Math.min(0.34, thrustVolume + 0.0136) : Math.max(0, thrustVolume - 0.0136);
@@ -182,11 +199,16 @@ function updateRaceAudio(powered) {
   setLoop(course.ambience, 0.25);
 }
 
-function setSoundLabel() {
-  const label = muted ? 'Son coupé' : 'Son activé';
-  $('race-sound-label').textContent = label;
-  $('home-sound-label').textContent = label;
-  for (const id of ['sound', 'home-sound']) $(id).setAttribute('aria-pressed', String(!muted));
+function syncAudioSettings() {
+  $('audio-enabled').checked = !muted;
+  $('music-enabled').checked = musicEnabled;
+  $('effects-enabled').checked = effectsEnabled;
+  $('music-enabled').disabled = muted;
+  $('effects-enabled').disabled = muted;
+  if (muted || !effectsEnabled) stopEffects();
+  else if (mode === 'running' || mode === 'countdown') enableEngineAudio();
+  if (muted || !musicEnabled) stopResultMusic();
+  syncMenuAudio();
 }
 
 function spriteImage(name, tint = 0xffffff) {
@@ -524,9 +546,12 @@ function finish() {
   const unlock = $('pro-track-unlocked');
   const unlocksSoloPro = isSprint && !alreadyQualified && hasQualifiedForPro(course);
   unlock.hidden = !unlocksTournamentPro && !unlocksSoloPro;
-  if (!unlock.hidden) unlock.textContent = unlocksTournamentPro
-    ? 'Pro débloqué dans le tournoi du jour'
-    : 'Circuit Pro débloqué · ' + course.name;
+  if (!unlock.hidden) {
+    unlock.textContent = unlocksTournamentPro
+      ? 'Pro débloqué dans le tournoi du jour'
+      : 'Circuit Pro débloqué · ' + course.name;
+    play('unlock_pro_track', 0.55);
+  }
   const record = !activeTournament && (!personalGhost || elapsed < personalGhost.time);
   if (record) {
     save('ghost-v2/' + course.id, JSON.stringify({ time: elapsed, car: player.car.id, points: replay }));
@@ -738,16 +763,27 @@ function bindPointer(element) {
 }
 
 function bindControls() {
-  const toggleSound = () => {
-    muted = !muted;
+  const audioSettings = $('audio-settings');
+  for (const id of ['sound', 'home-sound', 'tournament-sound']) {
+    $(id).addEventListener('click', () => {
+      controls.clear();
+      audioSettings.showModal();
+    });
+  }
+  audioSettings.addEventListener('change', () => {
+    muted = !$('audio-enabled').checked;
+    musicEnabled = $('music-enabled').checked;
+    effectsEnabled = $('effects-enabled').checked;
     save('muted', muted);
-    if (muted) stopRaceAudio();
-    else if (mode === 'running' || mode === 'countdown') enableEngineAudio();
-    syncMenuAudio();
-    setSoundLabel();
-  };
-  $('sound').addEventListener('click', toggleSound);
-  $('home-sound').addEventListener('click', toggleSound);
+    save('music-enabled', musicEnabled);
+    save('effects-enabled', effectsEnabled);
+    syncAudioSettings();
+  });
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('#solo-open, #tournament-open, #tournament-locate, #tournament-demo, #garage-open, .garage-car, #gift-open, #sound, #home-sound, #tournament-sound, dialog form[method="dialog"] button')) {
+      play('click', 0.35);
+    }
+  });
   $('result-action').addEventListener('click', () => {
     if (mode !== 'finished') return;
     if (retryResult) {
@@ -759,7 +795,7 @@ function bindControls() {
   });
   bindPointer(canvas);
   window.addEventListener('keydown', (event) => {
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (audioSettings.open || event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.code === 'Escape' && !event.repeat) {
       if ($('race-screen').hidden && $('race-intro').hidden) return;
       event.preventDefault();
@@ -792,10 +828,11 @@ function bindControls() {
 
 async function init() {
   document.addEventListener('click', syncMenuAudio);
+  document.addEventListener('pointerup', syncMenuAudio);
   document.addEventListener('keyup', syncMenuAudio);
   syncMenuAudio();
   for (const { id, name } of cars) $('car').append(new Option(name, id));
-  setSoundLabel();
+  syncAudioSettings();
   const atlasNames = [...new Set(Object.values(frames).map(({ sheet }) => sheet))];
   const roadNames = [...new Set(tracks.map(({ menuRoad }) => 'road_ui_straight_' + menuRoad))];
   await Promise.all([...atlasNames, ...roadNames].map((name) => new Promise((resolve, reject) => {
