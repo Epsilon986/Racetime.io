@@ -115,6 +115,10 @@ body:has(.home:not([hidden])) { display: block; }
 }
 .mode-leaving { position: fixed; inset: 0; z-index: 4; }
 #tournament-road { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tournament-page {
+  --tournament-lane-width: 90px;
+  --tournament-pavement-width: calc(2 * var(--tournament-lane-width));
+}
 .tournament-header {
   position: absolute;
   z-index: 3;
@@ -274,11 +278,6 @@ body:has(.home:not([hidden])) { display: block; }
 }
 .tournament-racer {
   position: relative;
-  --tournament-car-size: clamp(92px, 12vw, 132px);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--tournament-car-size) minmax(0, 1fr);
-  align-items: center;
-  column-gap: 4px;
   width: 100%;
   min-height: 160px;
   padding: 0;
@@ -299,9 +298,13 @@ body:has(.home:not([hidden])) { display: block; }
 }
 #tournament-racers li:nth-child(even) canvas { animation-delay: -.8s; }
 .tournament-racer-caption {
-  grid-column: 3;
+  position: absolute;
+  top: 50%;
+  left: calc(50% + var(--tournament-car-clearance, 46px));
+  right: max(0px, calc(50% - var(--tournament-lane-width)));
+  transform: translateY(-50%);
   display: grid;
-  justify-self: start;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   padding: 5px 16px 5px 9px;
   border-radius: 2px 0 0 2px;
@@ -315,6 +318,7 @@ body:has(.home:not([hidden])) { display: block; }
   overflow: hidden;
   white-space: nowrap;
 }
+.tournament-racer-caption > * { overflow: hidden; text-overflow: ellipsis; }
 .tournament-racer-caption strong { color: var(--podium-panel-ink, #fff2a4); font-size: 1.27em; font-variant-numeric: tabular-nums; }
 button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.12); }
 .tournament-racer[aria-pressed="true"] canvas { filter: drop-shadow(0 0 8px #ffe878) drop-shadow(0 6px 2px #0008); }
@@ -360,7 +364,6 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
 }
 .tournament-podium canvas { z-index: 1; }
 .tournament-podium .tournament-racer-caption {
-  position: relative;
   z-index: 2;
 }
 .tournament-overtake-player .tournament-racer-caption { visibility: hidden; }

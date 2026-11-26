@@ -596,9 +596,11 @@ function tournamentVehicleBounds(car) {
 function paintTournamentVehicles(scale) {
   if (scale === tournamentVehicleScale) return;
   tournamentVehicleScale = scale;
-  $('tournament-road-scroll').style.setProperty('--tournament-pavement-width', 180 * scale + 'px');
+  $('tournament').style.setProperty('--tournament-lane-width', 90 * scale + 'px');
   for (const { icon, button, entry } of tournamentRows) {
-    const extent = tournamentVehicleBounds(entry.car).radius * scale;
+    const { radius, width } = tournamentVehicleBounds(entry.car);
+    const extent = radius * scale;
+    button.style.setProperty('--tournament-car-clearance', width * scale + 6 + 'px');
     button.style.minHeight = Math.max(160, Math.ceil(extent * 2 + 24)) + 'px';
     const dc = icon.getContext('2d');
     dc.resetTransform();
