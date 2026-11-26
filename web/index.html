@@ -23,7 +23,7 @@
       <div class="home-actions">
         <button class="home-action" id="garage-open" disabled><canvas data-icon="button_garage" width="38" height="38" aria-hidden="true"></canvas>Garage</button>
         <button class="home-action" id="gift-open" disabled><canvas data-icon="button_gift" width="38" height="38" aria-hidden="true"></canvas>Cadeaux<span id="gift-dot" class="gift-dot" hidden><span class="visually-hidden"> disponibles</span></span></button>
-        <button class="home-action" id="home-sound" aria-pressed="true" disabled><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas><span id="home-sound-label">Son activé</span></button>
+        <button class="home-action" id="home-sound" aria-haspopup="dialog" disabled><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas>Audio</button>
       </div>
     </header>
     <p class="solo-mode-label">Course libre</p>
@@ -86,7 +86,7 @@
         <div><span>CHRONO</span><strong id="time">0:00.00</strong></div>
         <div><span>FANTÔME</span><strong id="ghost">–</strong></div>
       </div>
-      <button id="sound" class="home-action" aria-pressed="true"><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas><span id="race-sound-label">Son activé</span></button>
+      <button id="sound" class="home-action" aria-haspopup="dialog"><canvas data-icon="settings_icon" width="34" height="34" aria-hidden="true"></canvas>Audio</button>
     </header>
     <p id="final-lap" class="final-lap" role="status" hidden>Dernier tour !</p>
     <section id="notice" class="race-result" aria-labelledby="result-title" hidden>
@@ -123,6 +123,7 @@
       <img class="tournament-logo" src="assets/logo.png" alt="Race Time">
       <span>Tournoi du jour</span>
       <time id="tournament-clock" aria-label="Temps restant"></time>
+      <button id="tournament-sound" class="quiet" type="button" aria-haspopup="dialog">Audio</button>
       <div class="tournament-tabs" role="group" aria-label="Circuit du tournoi">
         <button id="tournament-sprint-tab" class="quiet" type="button" aria-pressed="true">Sprint</button>
         <button id="tournament-pro-tab" class="quiet" type="button" aria-pressed="false">Pro</button>
@@ -162,6 +163,15 @@
     <button class="quiet mode-nav-button" id="solo-open" type="button">Course libre →</button>
   </main>
 
+  <dialog id="audio-settings" class="home-dialog audio-dialog" aria-labelledby="audio-settings-title">
+    <div class="dialog-header">
+      <h2 id="audio-settings-title">Réglages audio</h2>
+      <form method="dialog"><button class="quiet">Fermer</button></form>
+    </div>
+    <label><input id="audio-enabled" type="checkbox"> Son général</label>
+    <label><input id="music-enabled" type="checkbox"> Musique</label>
+    <label><input id="effects-enabled" type="checkbox"> Effets sonores</label>
+  </dialog>
   <dialog id="garage" class="home-dialog" aria-labelledby="garage-title">
     <div class="dialog-header"><div><h2 id="garage-title">Garage</h2><p id="garage-count"></p></div><form method="dialog"><button class="quiet">Fermer</button></form></div>
     <div id="garage-cars" class="garage-grid"></div>
