@@ -12,7 +12,6 @@ let selectedTournamentRow = null;
 let tournamentVehicleScale = 0;
 let tournamentVehicleLayoutSize = '';
 let finishTournamentOvertake;
-let tournamentDemo = false;
 let tournamentRoadWiden = 1;
 let tournamentRoadPan = 0;
 let tournamentGainTimer;
@@ -100,7 +99,7 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
   const promotions = tournamentPromotions(progress, displayedTournament);
   if (!count && !promotions.length) return;
   const label = $('tournament-overtake');
-  label.textContent = !count ? 'Division ' + promotions.at(-1) : tournamentDemo ? 'Aperçu · 121e → 5e' :
+  label.textContent = !count ? 'Division ' + promotions.at(-1) :
     count === 1 ? '1 pilote dépassé' : count + ' pilotes dépassés';
   label.hidden = false;
   if (homeMotion.matches) return;
@@ -335,7 +334,7 @@ function tournamentLeaderboard(opponents, self, progress = null) {
 }
 
 function startTournament(opponent) {
-  if (tournamentDemo || !$('race-intro').hidden) return;
+  if (!$('race-intro').hidden) return;
   finishTournamentOvertake?.();
   clearTournamentCelebration();
   const today = dailyTournament(new Date(), tournamentMode);
@@ -900,12 +899,9 @@ function openTournamentPage(slide = false) {
   finishTournamentOvertake?.();
   clearTournamentCelebration();
   $('tournament-overtake').hidden = true;
-  const wasDemo = tournamentDemo;
-  tournamentDemo = false;
-  $('tournament-demo').textContent = 'Aperçu 121e → 5e';
   $('tournament-enter').disabled = false;
   const road = $('tournament-road-scroll');
-  if (!wasDemo && displayedTournament && !$('tournament').hidden) tournamentScroll.set(displayedTournament.category, road.scrollTop);
+  if (displayedTournament && !$('tournament').hidden) tournamentScroll.set(displayedTournament.category, road.scrollTop);
   const today = dailyTournament();
   if (displayedTournament?.day !== today.day) tournamentScroll.clear();
   if (tournamentMode === 'pro' && !tournamentProUnlocked()) tournamentMode = 'sprint';
@@ -918,28 +914,6 @@ function openTournamentPage(slide = false) {
   updateTournamentSelection();
   window.scrollTo(0, 0);
   $('tournament-title').focus({ preventScroll: true });
-}
-
-function toggleTournamentDemo() {
-  if (tournamentDemo) {
-    openTournamentPage();
-    return;
-  }
-  const tournament = displayedTournament;
-  const opponents = tournamentOpponents(tournament.track).slice().sort((a, b) => a.time - b.time);
-  const time = Math.round(opponents[3].time * 100);
-  const previous = Math.round(opponents.at(-1).time * 100) + 1;
-  const road = $('tournament-road-scroll');
-  tournamentScroll.set(tournamentMode, road.scrollTop);
-  tournamentDemo = true;
-  displayedTournament = { ...tournament, pro: Math.round(opponents[34].time * 100), master: time };
-  $('tournament-demo').textContent = 'Quitter l’aperçu';
-  $('tournament-enter').disabled = true;
-  showTournamentRacers(displayedTournament, { time });
-  paintTournamentRoad();
-  centerTournamentRow($('tournament-self'));
-  updateTournamentSelection();
-  animateTournamentOvertake({ previous, time }, { time });
 }
 
 function paintTournamentRoad(dt = 0) {
@@ -991,7 +965,7 @@ function initializeHome() {
   $('solo-open').addEventListener('click', () => {
     finishTournamentOvertake?.();
     clearTournamentCelebration();
-    if (!tournamentDemo) tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
+    tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
     showModePage('home', true);
     refreshHome();
     window.scrollTo(0, 0);
@@ -1001,7 +975,6 @@ function initializeHome() {
     const entry = selectedTournamentRow?.entry;
     startTournament(entry?.ai ? entry : tournamentReferenceOpponent(displayedTournament.track));
   });
-  $('tournament-demo').addEventListener('click', toggleTournamentDemo);
   $('tournament-road-scroll').addEventListener('scroll', updateTournamentSelection, { passive: true });
   for (const event of ['wheel', 'pointerdown']) {
     $('tournament-road-scroll').addEventListener(event, () => finishTournamentOvertake?.(), { passive: true });

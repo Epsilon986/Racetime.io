@@ -183,7 +183,6 @@ body:has(.home:not([hidden])) { display: block; }
 #tournament-locate { margin: 10px 0 0; pointer-events: auto; }
 .mode-nav-button { position: absolute; z-index: 3; bottom: 12px; }
 #solo-open { right: 15px; }
-#tournament-demo { left: 15px; font-size: .85rem; }
 #tournament-open { left: 15px; }
 #home .home-ranking { top: auto; bottom: max(66px, 10%); }
 #tournament-pro-lock { color: #ffe29b; }
