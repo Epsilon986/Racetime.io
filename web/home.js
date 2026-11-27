@@ -241,6 +241,7 @@ function updateTournamentSelection() {
     nearest.button.setAttribute('aria-pressed', 'true');
     const { entry } = nearest;
     $('tournament-selected-name').textContent = entry.name;
+    $('tournament-selected-name').title = entry.name;
     $('tournament-selected-rank').textContent = entry.rank === null ? 'Non classé' : '#' + entry.rank;
     $('tournament-selected-car').textContent = entry.car.name;
     $('tournament-selected-time').textContent = entry.time === null ? 'Aucun chrono' : tournamentScore(entry.time);

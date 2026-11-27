@@ -192,7 +192,7 @@ body:has(.home:not([hidden])) { display: block; }
   z-index: 2;
   inset: 132px auto 60px 50%;
   transform: translateX(-50%);
-  width: min(43vw, 510px);
+  width: min(57vw, 620px);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
@@ -373,22 +373,47 @@ body:has(.home:not([hidden])) { display: block; }
 .tournament-racer-caption > * { overflow: hidden; text-overflow: ellipsis; }
 .tournament-racer-caption strong { color: #a9f7ff; font-size: 1.12em; font-variant-numeric: tabular-nums; }
 .tournament-racer-caption:has(.tournament-racer-rank) {
-  --caption-start: calc(50% + var(--tournament-car-clearance, 46px) - 4px);
-  left: var(--caption-start);
+  --caption-width: 150px;
+  --caption-name-size: .73rem;
+  --caption-time-size: .82rem;
+  --caption-rank-size: .65rem;
   right: auto;
-  width: min(208px, calc(100% - var(--caption-start)));
-  min-height: 78px;
+  width: var(--caption-width);
+  height: 85px;
+  min-height: 0;
+  padding: 0;
   background: var(--tournament-player-art) 6.67% 51.04% / 231.25% 202.62% no-repeat;
 }
+@media (max-width: 1100px) {
+  .tournament-racer-caption:has(.tournament-racer-rank) {
+    --caption-width: 110px;
+    --caption-name-size: .63rem;
+    --caption-time-size: .74rem;
+    --caption-rank-size: .56rem;
+  }
+}
+@media (max-width: 359px) {
+  .tournament-racer-caption:has(.tournament-racer-rank) {
+    --caption-width: 94px;
+    --caption-name-size: .6rem;
+    --caption-time-size: .68rem;
+    --caption-rank-size: .52rem;
+  }
+}
 .tournament-racer-caption:has(.tournament-racer-rank) > :not(.tournament-racer-rank) {
-  margin-inline: 13% 9%;
+  position: absolute;
+  left: 15%;
+  right: 23%;
+  min-width: 0;
+  line-height: 1.1;
 }
 .tournament-racer-rank + span {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow-wrap: anywhere;
-  white-space: normal;
+  top: 44%;
+  font-size: var(--caption-name-size);
+}
+.tournament-racer-caption:has(.tournament-racer-rank) > strong {
+  top: 60%;
+  font-size: var(--caption-time-size);
 }
 .tournament-racer-rank {
   position: absolute;
@@ -400,7 +425,7 @@ body:has(.home:not([hidden])) { display: block; }
   height: 16%;
   background: #00dce8;
   color: #00151d;
-  font-size: clamp(.51rem, .85vw, .75rem);
+  font-size: var(--caption-rank-size);
   font-style: italic;
   text-shadow: none;
 }
@@ -496,6 +521,7 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
   transform: translateY(-50%);
   width: min(27vw, 320px);
   height: clamp(218px, 23vw, 285px);
+  container-type: inline-size;
   background: var(--tournament-player-art) right center / 189.74% 100% no-repeat;
   color: white;
   text-shadow: 0 1px 3px #00111e;
@@ -509,9 +535,39 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-#tournament-selected-name { top: 27%; font-size: clamp(.85rem, 1.45vw, 1.25rem); line-height: 1.1; }
-#tournament-selected-car { top: 37%; color: #deedfa; font-size: .8rem; }
-#tournament-selected-time { top: 45%; color: #fff2a4; font-size: clamp(.95rem, 1.9vw, 1.65rem); font-weight: 900; font-variant-numeric: tabular-nums; }
+#tournament-selected-name {
+  top: 31.5%;
+  transform: translateY(-50%);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: #f7fbff;
+  font-size: clamp(.78rem, 6.6cqw, 1.2rem);
+  font-weight: 950;
+  letter-spacing: -.035em;
+  line-height: 1;
+}
+#tournament-selected-car {
+  top: 40%;
+  color: #bcddf2;
+  font-size: clamp(.66rem, 4.3cqw, .82rem);
+  font-weight: 700;
+  letter-spacing: .035em;
+  line-height: 1.1;
+}
+#tournament-selected-time {
+  top: 47%;
+  color: #fff2a4;
+  font-family: "Arial Black", system-ui, sans-serif;
+  font-size: clamp(.92rem, 8.1cqw, 1.45rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.035em;
+  line-height: 1;
+  text-shadow: 0 2px 3px #00111e;
+}
 #tournament-selected-rank {
   position: absolute;
   top: 13.5%;
@@ -522,7 +578,8 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
   place-items: center;
   background: #00dce8;
   color: #00151d;
-  font-size: clamp(.61rem, 1.15vw, .95rem);
+  font-size: clamp(.6rem, 4.8cqw, .92rem);
+  font-variant-numeric: tabular-nums;
   font-style: italic;
   font-weight: 950;
   line-height: 1;
@@ -538,8 +595,9 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
   display: grid;
   place-items: center;
   color: #15253b;
-  font-size: clamp(.55rem, .85vw, .68rem);
+  font-size: clamp(.53rem, 3.5cqw, .68rem);
   font-weight: 950;
+  letter-spacing: .035em;
   text-shadow: none;
   text-transform: uppercase;
 }
@@ -555,7 +613,10 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
   border: 0;
   background: transparent;
   color: #192000;
-  font-size: clamp(.75rem, 1.28vw, 1rem);
+  font-size: clamp(.68rem, 4.6cqw, .96rem);
+  font-weight: 950;
+  letter-spacing: .045em;
+  text-transform: uppercase;
   white-space: nowrap;
   text-shadow: none;
 }
@@ -598,7 +659,7 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
   #tournament-preview { position: absolute; top: 1px; right: 0; width: 86px; }
   #tournament-track { margin-top: 4px; }
   .tournament-info #tournament-previous { font-size: .76rem; }
-  .tournament-road-scroll { inset: max(265px, 41%) auto 196px 50%; width: min(100%, 400px); }
+  .tournament-road-scroll { inset: max(265px, 41%) auto 196px 50%; width: min(100%, 490px); }
   .tournament-gain-overlay { top: max(230px, 35%); }
   #tournament-gain-count { font-size: clamp(2.6rem, 11vw, 4.2rem); }
   .tournament-selection {
@@ -611,6 +672,10 @@ button.tournament-racer:hover .tournament-racer-caption { filter: brightness(1.1
     transform: translateX(-50%);
   }
   .tournament-selection #tournament-enter { top: 66%; min-height: 30px; }
+  #tournament-selected-name { font-size: clamp(.76rem, 5.6cqw, .9rem); }
+  #tournament-selected-car { top: 40.5%; font-size: .68rem; }
+  #tournament-selected-time { top: 48%; font-size: clamp(.9rem, 6.2cqw, 1.04rem); }
+  #tournament-selected-division { top: 58.5%; }
   .circuit-controls { max-width: 260px; margin: 10px auto 0; }
   .circuit-modes { justify-content: center; gap: 20px; }
   .home-ranking { top: auto; bottom: 17px; left: 18px; right: 18px; width: auto; max-width: 380px; margin-inline: auto; }
