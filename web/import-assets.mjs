@@ -39,7 +39,8 @@ for (const sheet of ['world_v2', 'world2', 'cars', 'main3_v2']) {
 const startPanel = read('spritesheet/main2_v5').frames.find(({ filename }) => filename === 'lb_balloon');
 frames.lb_balloon = { ...startPanel, sheet: 'main2_v5' };
 copy('spritesheet/main2_v5.png', 'main2_v5.png');
-const homeIcons = new Set(['button_garage', 'button_gift', 'settings_icon', 'trophy_gold', 'coin']);
+const homeIcons = new Set(['button_garage', 'button_gift', 'settings_icon', 'trophy_gold', 'coin',
+  'division_ribbon_master', 'division_ribbon_pro', 'division_ribbon_novice']);
 for (const frame of read('spritesheet/main_v5').frames) {
   if (homeIcons.has(frame.filename)) frames[frame.filename] = { ...frame, sheet: 'main_v5' };
 }

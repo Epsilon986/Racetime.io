@@ -12,21 +12,17 @@ let selectedTournamentRow = null;
 let tournamentVehicleScale = 0;
 let tournamentVehicleLayoutSize = '';
 let finishTournamentOvertake;
-let tournamentDemo = false;
 let tournamentRoadWiden = 1;
 let tournamentRoadPan = 0;
-let tournamentGainTimer;
 let tournamentPromotionTimer;
 const tournamentPromotionQueue = [];
 
 function clearTournamentCelebration() {
-  clearTimeout(tournamentGainTimer);
   clearTimeout(tournamentPromotionTimer);
   tournamentPromotionTimer = undefined;
   tournamentPromotionQueue.length = 0;
   recordings.win_prize?.pause();
   recordings.tournament_results?.pause();
-  $('tournament-gain-overlay').hidden = true;
   $('tournament-promotion').hidden = true;
 }
 
@@ -58,21 +54,6 @@ function tournamentPromotions(progress, tournament) {
     (progress.previous === null || progress.previous > tournament[division]));
 }
 
-function showTournamentGain(gained, rank, final = false) {
-  const overlay = $('tournament-gain-overlay');
-  overlay.classList.toggle('is-final', final);
-  const value = '+' + gained;
-  const counter = $('tournament-gain-count');
-  if (counter.textContent !== value) {
-    counter.textContent = value;
-    counter.getAnimations().forEach((animation) => animation.cancel());
-    counter.animate([{ transform: 'scale(1.12)' }, { transform: 'scale(1)' }], { duration: 140, easing: 'ease-out' });
-  }
-  $('tournament-gain-label').textContent = gained === 1 ? 'Place gagnée' : 'Places gagnées';
-  $('tournament-gain-rank').textContent = final ? rank + (rank === 1 ? 'ʳᵉ' : 'ᵉ') : '#' + rank;
-  overlay.hidden = false;
-}
-
 function tournamentPasses(rows, progress) {
   return rows.filter(({ entry }) => {
     if (!entry.ai) return false;
@@ -100,7 +81,7 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
   const promotions = tournamentPromotions(progress, displayedTournament);
   if (!count && !promotions.length) return;
   const label = $('tournament-overtake');
-  label.textContent = !count ? 'Division ' + promotions.at(-1) : tournamentDemo ? 'Aperçu · 121e → 5e' :
+  label.textContent = count === 0 ? 'Division ' + promotions.at(-1) :
     count === 1 ? '1 pilote dépassé' : count + ' pilotes dépassés';
   label.hidden = false;
   if (homeMotion.matches) return;
@@ -164,10 +145,7 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
     centerTournamentRow($('tournament-self'));
     updateTournamentSelection();
     if (completed) {
-      if (self.entry.rank <= 3) $('tournament-self').classList.add('tournament-podium-arrival');
-      showTournamentGain(count, self.entry.rank, true);
       play('tournament_results', 0.5);
-      tournamentGainTimer = setTimeout(() => { $('tournament-gain-overlay').hidden = true; }, 2100);
     } else {
       for (const name of overtakeSounds) recordings[name]?.pause();
       clearTournamentCelebration();
@@ -189,7 +167,6 @@ function animateTournamentOvertake(progress, best = tournamentBest(displayedTour
     }
     previousRank = rank;
     $('tournament-selected-rank').textContent = '#' + rank;
-    showTournamentGain(count - (rank - self.entry.rank), rank);
     while (promotionCrossings.length && road.scrollTop <= Math.max(target, promotionCrossings[0].position)) {
       tournamentPromotionQueue.push(promotionCrossings.shift().division);
       if (tournamentPromotionTimer === undefined) playTournamentPromotions();
@@ -335,7 +312,7 @@ function tournamentLeaderboard(opponents, self, progress = null) {
 }
 
 function startTournament(opponent) {
-  if (tournamentDemo || !$('race-intro').hidden) return;
+  if (!$('race-intro').hidden) return;
   finishTournamentOvertake?.();
   clearTournamentCelebration();
   const today = dailyTournament(new Date(), tournamentMode);
@@ -388,20 +365,21 @@ function showTournamentRacers(tournament, best, progress = null) {
       row.className = 'tournament-marker';
       row.dataset.division = entry.name.toLowerCase();
       const badge = document.createElement('span');
-      badge.className = 'visually-hidden';
+      badge.className = 'tournament-division-label';
       badge.textContent = entry.name;
       const time = document.createElement('strong');
       time.textContent = tournamentScore(entry.time);
-      row.append(badge, time);
+      const ribbon = document.createElement('canvas');
+      ribbon.width = 148;
+      ribbon.height = 40;
+      ribbon.setAttribute('aria-hidden', 'true');
+      drawHomeIcon(ribbon, 'division_ribbon_' + row.dataset.division);
+      row.append(ribbon, badge, time);
       return row;
     }
     if (!entry.ai) row.id = 'tournament-self';
     const card = document.createElement('button');
     card.className = 'tournament-racer';
-    if (entry.rank !== null && entry.rank <= 3) {
-      row.classList.add('tournament-podium');
-      row.dataset.podium = String(entry.rank);
-    }
     const icon = document.createElement('canvas');
     icon.width = icon.height = 320;
     icon.setAttribute('aria-hidden', 'true');
@@ -410,7 +388,7 @@ function showTournamentRacers(tournament, best, progress = null) {
     const label = document.createElement('span');
     const rankedName = entry.rank === null ? entry.name : '#' + entry.rank + ' ' + entry.name;
     label.textContent = entry.name;
-    if (!row.dataset.podium) {
+    {
       const rank = document.createElement('span');
       rank.className = 'tournament-racer-rank';
       rank.textContent = entry.rank === null ? '—' : '#' + entry.rank;
@@ -615,24 +593,12 @@ function paintTournamentVehicles(scale, width, height) {
     const { radius, width } = tournamentVehicleBounds(entry.car);
     const extent = radius * scale;
     button.style.setProperty('--tournament-car-clearance', width * scale + 6 + 'px');
-    const podium = entry.rank !== null && entry.rank <= 3;
-    if (!podium) button.style.minHeight = Math.max(160, Math.ceil(extent * 2 + 24)) + 'px';
+    button.style.minHeight = Math.max(160, Math.ceil(extent * 2 + 24)) + 'px';
     const dc = icon.getContext('2d');
     dc.resetTransform();
     dc.clearRect(0, 0, icon.width, icon.height);
     dc.translate(icon.width / 2, icon.height / 2);
-    let vehicleScale = scale;
-    if (podium) {
-      const winner = entry.rank === 1;
-      const diameter = Math.min(
-        winner ? 164 : 108,
-        button.clientWidth * (winner ? .66 : .36),
-        button.clientHeight * (winner ? .57 : 1)
-      );
-      vehicleScale = Math.min(scale * 1.65, diameter / (2 * radius));
-      icon.style.setProperty('--tournament-overtake-car-scale', Math.min(1, scale / vehicleScale));
-    }
-    const drawingScale = vehicleScale * icon.width / icon.clientWidth;
+    const drawingScale = scale * icon.width / icon.clientWidth;
     dc.scale(drawingScale, drawingScale);
     drawVehicle(dc, entry.car, { x: 0, y: 0, angle: 0 }, { powered: true });
   }
@@ -900,12 +866,8 @@ function openTournamentPage(slide = false) {
   finishTournamentOvertake?.();
   clearTournamentCelebration();
   $('tournament-overtake').hidden = true;
-  const wasDemo = tournamentDemo;
-  tournamentDemo = false;
-  $('tournament-demo').textContent = 'Aperçu 121e → 5e';
-  $('tournament-enter').disabled = false;
   const road = $('tournament-road-scroll');
-  if (!wasDemo && displayedTournament && !$('tournament').hidden) tournamentScroll.set(displayedTournament.category, road.scrollTop);
+  if (displayedTournament && !$('tournament').hidden) tournamentScroll.set(displayedTournament.category, road.scrollTop);
   const today = dailyTournament();
   if (displayedTournament?.day !== today.day) tournamentScroll.clear();
   if (tournamentMode === 'pro' && !tournamentProUnlocked()) tournamentMode = 'sprint';
@@ -918,28 +880,6 @@ function openTournamentPage(slide = false) {
   updateTournamentSelection();
   window.scrollTo(0, 0);
   $('tournament-title').focus({ preventScroll: true });
-}
-
-function toggleTournamentDemo() {
-  if (tournamentDemo) {
-    openTournamentPage();
-    return;
-  }
-  const tournament = displayedTournament;
-  const opponents = tournamentOpponents(tournament.track).slice().sort((a, b) => a.time - b.time);
-  const time = Math.round(opponents[3].time * 100);
-  const previous = Math.round(opponents.at(-1).time * 100) + 1;
-  const road = $('tournament-road-scroll');
-  tournamentScroll.set(tournamentMode, road.scrollTop);
-  tournamentDemo = true;
-  displayedTournament = { ...tournament, pro: Math.round(opponents[34].time * 100), master: time };
-  $('tournament-demo').textContent = 'Quitter l’aperçu';
-  $('tournament-enter').disabled = true;
-  showTournamentRacers(displayedTournament, { time });
-  paintTournamentRoad();
-  centerTournamentRow($('tournament-self'));
-  updateTournamentSelection();
-  animateTournamentOvertake({ previous, time }, { time });
 }
 
 function paintTournamentRoad(dt = 0) {
@@ -991,7 +931,7 @@ function initializeHome() {
   $('solo-open').addEventListener('click', () => {
     finishTournamentOvertake?.();
     clearTournamentCelebration();
-    if (!tournamentDemo) tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
+    tournamentScroll.set(tournamentMode, $('tournament-road-scroll').scrollTop);
     showModePage('home', true);
     refreshHome();
     window.scrollTo(0, 0);
@@ -1001,7 +941,6 @@ function initializeHome() {
     const entry = selectedTournamentRow?.entry;
     startTournament(entry?.ai ? entry : tournamentReferenceOpponent(displayedTournament.track));
   });
-  $('tournament-demo').addEventListener('click', toggleTournamentDemo);
   $('tournament-road-scroll').addEventListener('scroll', updateTournamentSelection, { passive: true });
   for (const event of ['wheel', 'pointerdown']) {
     $('tournament-road-scroll').addEventListener(event, () => finishTournamentOvertake?.(), { passive: true });
